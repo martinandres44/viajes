@@ -50,7 +50,7 @@ const PAYMENT_METHODS = [
 ];
 
 const BANKS = [
-  { id: "visa_bank", label: "Visa", icon: "🏦", color: "#1A1F71" },
+  { id: "Galicia", label: "Galicia", icon: "🏦", color: "#FFA500" },
   { id: "bbva", label: "BBVA", icon: "🏦", color: "#004481" },
   { id: "icbc", label: "ICBC", icon: "🏦", color: "#C8102E" },
 ];
