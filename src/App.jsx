@@ -283,10 +283,20 @@ function FlightsSection({ data, updateData }) {
     const flights = (data.flights || []).map((f) => (f.id === id ? { ...f, [field]: val } : f));
     updateData({ ...data, flights });
   };
+
+  const getTrackingUrl = (flight) => {
+    if (!flight.flightNumber || !flight.date) return null;
+    const num = flight.flightNumber.replace(/\s/g, '');
+    const d = flight.date.replace(/-/g, '');
+    return `https://www.google.com/travel/flights?q=${num}+${d}`;
+  };
+
   return (
     <div>
       <div style={{ fontSize: 18, fontWeight: 800, color: "#E8ECF4", marginBottom: 16, fontFamily: "'Playfair Display', serif" }}>✈️ Vuelos</div>
-      {(data.flights || []).map((flight) => (
+      {(data.flights || []).map((flight) => {
+        const trackUrl = getTrackingUrl(flight);
+        return (
         <Card key={flight.id} style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: "#E8ECF4", textTransform: "uppercase" }}>
@@ -307,8 +317,15 @@ function FlightsSection({ data, updateData }) {
           </div>
           <Input label="Código Confirmación" value={flight.confirmation} onChange={(v) => update(flight.id, "confirmation", v)} placeholder="ABC123" />
           <Input label="Notas" value={flight.notes} onChange={(v) => update(flight.id, "notes", v)} placeholder="Terminal, gate, etc." />
+          {trackUrl && (
+            <a href={trackUrl} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(0,180,216,0.08)", borderRadius: 10, textDecoration: "none", marginTop: 4, border: "1px solid rgba(0,180,216,0.15)" }}>
+              <span style={{ fontSize: 16 }}>🔍</span>
+              <span style={{ fontSize: 13, color: "#00B4D8", fontWeight: 600 }}>Ver vuelo {flight.flightNumber} en Google Flights</span>
+            </a>
+          )}
         </Card>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -325,8 +342,8 @@ function HotelSection({ data, updateData }) {
           <StatusBadge status={h.confirmation ? "confirmado" : "pendiente"} />
           {nights > 0 && <span style={{ fontSize: 13, color: "#8892A4" }}>{nights} noches</span>}
         </div>
-        <Input label="Hotel" value={h.name} onChange={(v) => update("name", v)} placeholder="Nombre del hotel" />
-        <Input label="Dirección" value={h.address} onChange={(v) => update("address", v)} placeholder="Dirección completa" />
+        <Input label="Nombre" value={h.name} onChange={(v) => update("name", v)} placeholder="Nombre del Airbnb" />
+        <Input label="Dirección" value={h.address} onChange={(v) => update("address", v)} placeholder="Dirección o link de Google Maps" />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <Input label="Check-in" value={h.checkIn} onChange={(v) => update("checkIn", v)} type="date" />
           <Input label="Check-out" value={h.checkOut} onChange={(v) => update("checkOut", v)} type="date" />
