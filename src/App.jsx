@@ -85,7 +85,7 @@ const DEFAULT_DATA = {
   budget: { total: 0, currency: "USD" },
   checklist: [
     { id: "c1", text: "Pasaporte", checked: false },
-    { id: "c2", text: "DNI", checked: false },
+    { id: "c2", text: "Licencia Conducir", checked: false },
     { id: "c3", text: "Seguro de viaje", checked: false },
     { id: "c4", text: "Tarjetas (Visa, BBVA, ICBC)", checked: false },
     { id: "c5", text: "Dólares cash", checked: false },
