@@ -808,7 +808,7 @@ function ExpensesSection({ data, updateData }) {
 }
 
 const DOC_CATEGORIES = [
-  { id: "vuelos, label: "Vuelos", icon: "🛫", color: "#F472B6" },
+  { id: "vuelos", label: "Vuelos", icon: "🛫", color: "#F472B6" },
   { id: "airbnb", label: "Airbnb", icon: "🏡", color: "#FF5A5F" },
   { id: "car", label: "Auto Rental", icon: "🚘", color: "#34D399" },
   { id: "insurance", label: "Seguro", icon: "🛡️", color: "#60A5FA" },
