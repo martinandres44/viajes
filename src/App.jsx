@@ -68,7 +68,7 @@ const DEFAULT_DATA = {
     { id: "f2", type: "vuelta", airline: "LATAM", flightNumber: "", from: "MIA", to: "LIM", date: "2026-03-24", time: "17:55", confirmation: "", status: "pendiente", notes: "Tramo 1 - Miami a Lima" },
     { id: "f3", type: "vuelta", airline: "LATAM", flightNumber: "", from: "LIM", to: "EZE", date: "2026-03-24", time: "23:45", confirmation: "", status: "pendiente", notes: "Tramo 2 - Lima a Buenos Aires" },
   ],
-  hotel: { name: "Airbnb Hollywood Beach", address: "Hollywood Beach, FL", checkIn: "2026-03-18", checkOut: "2026-03-24", confirmation: "", totalCost: 0, currency: "USD", notes: "📍 https://maps.app.goo.gl/UvVzdYNsABFu2C2e7", paid: false },
+  hotel: { name: "The Tides", address: "3901 S Ocean Dr, Hollywood, FL 33019", checkIn: "2026-03-18", checkOut: "2026-03-24", confirmation: "", totalCost: 0, currency: "USD", notes: "📍 https://maps.app.goo.gl/UvVzdYNsABFu2C2e7", paid: false },
   car: { company: "", pickUp: "2026-03-18", dropOff: "2026-03-24", confirmation: "", totalCost: 0, currency: "USD", notes: "", paid: false },
   tickets: [],
   expenses: [],
