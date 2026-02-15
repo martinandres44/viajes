@@ -67,19 +67,19 @@ const DEFAULT_DATA = {
     { id: "f1", type: "ida", airline: "", flightNumber: "", from: "EZE", to: "MIA", date: "2026-03-17", time: "21:50", confirmation: "", status: "pendiente", notes: "Vuelo nocturno" },
     { id: "f2", type: "vuelta", airline: "", flightNumber: "", from: "MIA", to: "EZE", date: "2026-03-24", time: "17:55", confirmation: "", status: "pendiente", notes: "" },
   ],
-  hotel: { name: "", address: "", checkIn: "2026-03-18", checkOut: "2026-03-24", confirmation: "", totalCost: 0, currency: "USD", notes: "", paid: false },
+  hotel: { name: "Airbnb Hollywood Beach", address: "Hollywood Beach, FL", checkIn: "2026-03-18", checkOut: "2026-03-24", confirmation: "", totalCost: 0, currency: "USD", notes: "📍 https://maps.app.goo.gl/UvVzdYNsABFu2C2e7", paid: false },
   car: { company: "", pickUp: "2026-03-18", dropOff: "2026-03-24", confirmation: "", totalCost: 0, currency: "USD", notes: "", paid: false },
   tickets: [],
   expenses: [],
   itinerary: [
     { id: "d1", date: "2026-03-17", title: "Vuelo de ida", activities: "21:50 - Vuelo EZE → MIA", notes: "Vuelo nocturno, llegar al aeropuerto ~19:00" },
-    { id: "d2", date: "2026-03-18", title: "Llegada + Inter Miami ⚽", activities: "Llegada a Miami\nCheck-in hotel\nRetirar auto rental\n19:00 - Inter Miami ⚽", notes: "Partido a las 7pm" },
+    { id: "d2", date: "2026-03-18", title: "Llegada + Inter Miami ⚽", activities: "Llegada a Miami\nCheck-in Airbnb\nRetirar auto rental\n19:00 - Inter Miami ⚽", notes: "Partido a las 7pm" },
     { id: "d3", date: "2026-03-19", title: "Miami Heat vs Lakers 🏀", activities: "Día libre por Miami\n19:00 - Miami Heat vs Lakers 🏀", notes: "Partido a las 7pm" },
-    { id: "d4", date: "2026-03-20", title: "Miami Open - Día completo 🎾", activities: "Miami Open 🎾 - Sesión diurna\nMiami Open 🎾 - Sesión nocturna", notes: "Día completo de tenis, sesión diurna + nocturna" },
-    { id: "d5", date: "2026-03-21", title: "Miami Open - Sesión diurna 🎾", activities: "Miami Open 🎾 - Sesión diurna", notes: "Solo sesión diurna" },
+    { id: "d4", date: "2026-03-20", title: "Miami Open - Día completo 🎾", activities: "Miami Open 🎾 - Sesión diurna\nMiami Open 🎾 - Sesión nocturna\n\n🔗 Order of Play: https://www.miamiopen.com/order-of-play/", notes: "Día completo de tenis, sesión diurna + nocturna" },
+    { id: "d5", date: "2026-03-21", title: "Miami Open - Sesión diurna 🎾", activities: "Miami Open 🎾 - Sesión diurna\n\n🔗 Order of Play: https://www.miamiopen.com/order-of-play/", notes: "Solo sesión diurna" },
     { id: "d6", date: "2026-03-22", title: "Día libre", activities: "Día libre para explorar\nSouth Beach\nLincoln Road\nOcean Drive", notes: "Sin planes fijos" },
     { id: "d7", date: "2026-03-23", title: "Miami Heat vs Spurs 🏀", activities: "Día libre por Miami\n19:00 - Miami Heat vs San Antonio Spurs 🏀", notes: "Partido a las 7pm" },
-    { id: "d8", date: "2026-03-24", title: "Vuelta", activities: "Check-out hotel\nDevolver auto\n17:55 - Vuelo MIA → EZE", notes: "Salida 17:55" },
+    { id: "d8", date: "2026-03-24", title: "Vuelta", activities: "Check-out Airbnb\nDevolver auto\n17:55 - Vuelo MIA → EZE", notes: "Salida 17:55" },
   ],
   budget: { total: 0, currency: "USD" },
 };
@@ -319,7 +319,7 @@ function HotelSection({ data, updateData }) {
   const nights = h.checkIn && h.checkOut ? Math.max(0, Math.ceil((new Date(h.checkOut) - new Date(h.checkIn)) / 86400000)) : 0;
   return (
     <div>
-      <div style={{ fontSize: 18, fontWeight: 800, color: "#E8ECF4", marginBottom: 16, fontFamily: "'Playfair Display', serif" }}>🏨 Hotel</div>
+      <div style={{ fontSize: 18, fontWeight: 800, color: "#E8ECF4", marginBottom: 16, fontFamily: "'Playfair Display', serif" }}>🏠 Airbnb</div>
       <Card>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <StatusBadge status={h.confirmation ? "confirmado" : "pendiente"} />
@@ -633,7 +633,6 @@ function TicketsSection({ data, updateData }) {
 
 function ItinerarySection({ data, updateData }) {
   const [adding, setAdding] = useState(false);
-  const [expanded, setExpanded] = useState(null);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ date: "", title: "", activities: "", notes: "" });
 
@@ -643,7 +642,7 @@ function ItinerarySection({ data, updateData }) {
     updateData({ ...data, itinerary: [...(data.itinerary || []), item].sort((a, b) => a.date.localeCompare(b.date)) });
     setForm({ date: "", title: "", activities: "", notes: "" }); setAdding(false);
   };
-  const remove = (id) => { updateData({ ...data, itinerary: (data.itinerary || []).filter((i) => i.id !== id) }); setExpanded(null); setEditing(null); };
+  const remove = (id) => { updateData({ ...data, itinerary: (data.itinerary || []).filter((i) => i.id !== id) }); setEditing(null); };
   const updateDay = (id, field, val) => {
     const itinerary = (data.itinerary || []).map((d) => (d.id === id ? { ...d, [field]: val } : d));
     updateData({ ...data, itinerary: itinerary.sort((a, b) => a.date.localeCompare(b.date)) });
@@ -679,61 +678,56 @@ function ItinerarySection({ data, updateData }) {
         </Card>
       )}
       {(data.itinerary || []).map((day, idx) => {
-        const isOpen = expanded === day.id;
         const isEditing = editing === day.id;
         const d = day.date ? new Date(day.date + "T12:00:00") : null;
         const dayLabel = d ? dayNames[d.getDay()] : "";
 
         return (
-          <Card key={day.id} style={{ marginBottom: 12, cursor: "pointer", borderColor: isOpen ? "rgba(0,212,170,0.2)" : undefined }} onClick={() => { if (!isEditing) setExpanded(isOpen ? null : day.id); }}>
-            {/* Header - always visible */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <Card key={day.id} style={{ marginBottom: 12 }}>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ fontSize: 11, color: "#00D4AA", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
-                    {dayLabel} {day.date?.slice(5)} — Día {idx + 1}
-                  </div>
-                  <span style={{ fontSize: 10, color: "#8892A4", transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}>▼</span>
+                <div style={{ fontSize: 11, color: "#00D4AA", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+                  {dayLabel} {day.date?.slice(5)} — Día {idx + 1}
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: "#E8ECF4", marginTop: 4 }}>{day.title}</div>
               </div>
+              {!isEditing && (
+                <button onClick={() => setEditing(day.id)} style={{ background: "none", border: "none", color: "#8892A4", fontSize: 12, cursor: "pointer", padding: "2px 6px" }}>✏️</button>
+              )}
             </div>
 
-            {/* Collapsed preview - show first activity */}
-            {!isOpen && day.activities && (
-              <div style={{ fontSize: 12, color: "#8892A4", marginTop: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {day.activities.split("\n").filter(Boolean)[0]}
-                {day.activities.split("\n").filter(Boolean).length > 1 && ` (+${day.activities.split("\n").filter(Boolean).length - 1} más)`}
-              </div>
-            )}
-
-            {/* Expanded view */}
-            {isOpen && !isEditing && (
-              <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.06)", animation: "fadeIn 0.2s ease" }} onClick={(e) => e.stopPropagation()}>
+            {/* Normal view */}
+            {!isEditing && (
+              <>
                 {day.activities && (
-                  <div style={{ marginBottom: 10 }}>
-                    {day.activities.split("\n").filter(Boolean).map((act, i) => (
-                      <div key={i} style={{ fontSize: 13, color: "#C8CDD8", padding: "4px 0", display: "flex", gap: 8 }}>
-                        <span style={{ color: "#00D4AA", flexShrink: 0 }}>›</span>{act}
-                      </div>
-                    ))}
+                  <div style={{ marginTop: 4 }}>
+                    {day.activities.split("\n").filter(Boolean).map((act, i) => {
+                      const urlMatch = act.match(/(https?:\/\/[^\s]+)/);
+                      if (urlMatch) {
+                        const parts = act.split(urlMatch[0]);
+                        return (
+                          <div key={i} style={{ fontSize: 13, color: "#C8CDD8", padding: "4px 0", display: "flex", gap: 8 }}>
+                            <span style={{ color: "#00D4AA", flexShrink: 0 }}>›</span>
+                            <span>{parts[0]}<a href={urlMatch[0]} target="_blank" rel="noopener noreferrer" style={{ color: "#00B4D8", textDecoration: "none", fontWeight: 600 }}>{urlMatch[0].replace(/https?:\/\/(www\.)?/, '').split('/')[0]}</a>{parts[1]}</span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={i} style={{ fontSize: 13, color: "#C8CDD8", padding: "4px 0", display: "flex", gap: 8 }}>
+                          <span style={{ color: "#00D4AA", flexShrink: 0 }}>›</span>{act}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
-                {day.notes && (
-                  <div style={{ fontSize: 13, color: "#C8CDD8", marginBottom: 10, padding: 12, background: "rgba(255,255,255,0.03)", borderRadius: 10, lineHeight: 1.6 }}>
-                    📝 {day.notes}
-                  </div>
-                )}
-                <div style={{ display: "flex", gap: 8 }}>
-                  <Btn onClick={() => setEditing(day.id)} variant="secondary" small>✏️ Editar</Btn>
-                  <Btn onClick={() => remove(day.id)} variant="danger" small>🗑 Eliminar</Btn>
-                </div>
-              </div>
+                {day.notes && <div style={{ fontSize: 12, color: "#8892A4", marginTop: 8, fontStyle: "italic" }}>{day.notes}</div>}
+              </>
             )}
 
             {/* Edit mode */}
-            {isOpen && isEditing && (
-              <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.06)", animation: "fadeIn 0.2s ease" }} onClick={(e) => e.stopPropagation()}>
+            {isEditing && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.06)", animation: "fadeIn 0.2s ease" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <Input label="Fecha" value={day.date} onChange={(v) => updateDay(day.id, "date", v)} type="date" />
                   <Input label="Título" value={day.title} onChange={(v) => updateDay(day.id, "title", v)} />
@@ -744,7 +738,10 @@ function ItinerarySection({ data, updateData }) {
                     style={{ width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#E8ECF4", fontSize: 13, outline: "none", resize: "vertical", boxSizing: "border-box", lineHeight: 1.6 }} />
                 </div>
                 <Input label="Notas" value={day.notes} onChange={(v) => updateDay(day.id, "notes", v)} />
-                <Btn onClick={() => setEditing(null)} small style={{ width: "100%" }}>✓ Listo</Btn>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn onClick={() => setEditing(null)} small style={{ flex: 1 }}>✓ Listo</Btn>
+                  <Btn onClick={() => remove(day.id)} variant="danger" small>🗑</Btn>
+                </div>
               </div>
             )}
           </Card>
@@ -835,7 +832,7 @@ export default function App() {
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "rgba(10,14,26,0.95)", backdropFilter: "blur(20px)", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-around", padding: "6px 0 env(safe-area-inset-bottom, 8px)", zIndex: 20 }}>
         <Tab active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon="🏠" label="Home" />
         <Tab active={tab === "flights"} onClick={() => setTab("flights")} icon="✈️" label="Vuelos" />
-        <Tab active={tab === "hotel" || tab === "car"} onClick={() => setTab(tab === "hotel" ? "car" : "hotel")} icon="🏨" label="Hotel/Auto" />
+        <Tab active={tab === "hotel" || tab === "car"} onClick={() => setTab(tab === "hotel" ? "car" : "hotel")} icon="🏠" label="Airbnb/Auto" />
         <Tab active={tab === "expenses"} onClick={() => setTab("expenses")} icon="💰" label="Gastos" badge={(data.expenses || []).length} />
         <Tab active={tab === "tickets"} onClick={() => setTab("tickets")} icon="🎫" label="Tickets" badge={(data.tickets || []).length} />
         <Tab active={tab === "itinerary"} onClick={() => setTab("itinerary")} icon="📋" label="Itinerario" />
