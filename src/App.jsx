@@ -65,8 +65,8 @@ const ColorDot = ({ color, size = 10 }) => (
 const DEFAULT_DATA = {
   flights: [
     { id: "f1", type: "ida", airline: "", flightNumber: "", from: "EZE", to: "MIA", date: "2026-03-17", time: "21:50", confirmation: "", status: "pendiente", notes: "Vuelo nocturno" },
-    { id: "f2", type: "vuelta", airline: "", flightNumber: "", from: "MIA", to: "LIM", date: "2026-03-24", time: "17:55", confirmation: "", status: "pendiente", notes: "" },    
-    { id: "f3", type: "vuelta", airline: "", flightNumber: "", from: "LIM", to: "EZE", date: "2026-03-24", time: "23:45", confirmation: "", status: "pendiente", notes: "" },    
+    { id: "f2", type: "vuelta", airline: "LATAM", flightNumber: "", from: "MIA", to: "LIM", date: "2026-03-24", time: "17:55", confirmation: "", status: "pendiente", notes: "Tramo 1 - Miami a Lima" },
+    { id: "f3", type: "vuelta", airline: "LATAM", flightNumber: "", from: "LIM", to: "EZE", date: "2026-03-24", time: "23:45", confirmation: "", status: "pendiente", notes: "Tramo 2 - Lima a Buenos Aires" },
   ],
   hotel: { name: "Airbnb Hollywood Beach", address: "Hollywood Beach, FL", checkIn: "2026-03-18", checkOut: "2026-03-24", confirmation: "", totalCost: 0, currency: "USD", notes: "📍 https://maps.app.goo.gl/UvVzdYNsABFu2C2e7", paid: false },
   car: { company: "", pickUp: "2026-03-18", dropOff: "2026-03-24", confirmation: "", totalCost: 0, currency: "USD", notes: "", paid: false },
@@ -83,6 +83,24 @@ const DEFAULT_DATA = {
     { id: "d8", date: "2026-03-24", title: "Vuelta", activities: "Check-out Airbnb\nDevolver auto\n17:55 - Vuelo MIA → EZE", notes: "Salida 17:55" },
   ],
   budget: { total: 0, currency: "USD" },
+  checklist: [
+    { id: "c1", text: "Pasaporte", checked: false },
+    { id: "c2", text: "DNI", checked: false },
+    { id: "c3", text: "Seguro de viaje", checked: false },
+    { id: "c4", text: "Tarjetas (Visa, BBVA, ICBC)", checked: false },
+    { id: "c5", text: "Dólares cash", checked: false },
+    { id: "c6", text: "Cargador celular", checked: false },
+    { id: "c7", text: "Adaptador enchufe", checked: false },
+    { id: "c8", text: "Protector solar", checked: false },
+    { id: "c9", text: "Malla / Short de baño", checked: false },
+    { id: "c10", text: "Ojotas", checked: false },
+    { id: "c11", text: "Lentes de sol", checked: false },
+    { id: "c12", text: "Botiquín básico", checked: false },
+    { id: "c13", text: "Boarding pass descargado", checked: false },
+    { id: "c14", text: "Confirmación Airbnb", checked: false },
+    { id: "c15", text: "Confirmación auto rental", checked: false },
+  ],
+  notes: "",
 };
 
 // ========== UI COMPONENTS ==========
@@ -275,6 +293,34 @@ function DashboardSection({ data, updateData }) {
         </Card>
       )}
 
+      {/* Daily expense chart */}
+      {(data.expenses || []).length > 0 && (() => {
+        const byDay = {};
+        (data.expenses || []).forEach((e) => { byDay[e.date] = (byDay[e.date] || 0) + (e.amount || 0); });
+        const days = Object.entries(byDay).sort((a, b) => a[0].localeCompare(b[0]));
+        const maxAmt = Math.max(...days.map(d => d[1]));
+        const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+        return (
+          <Card style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "#8892A4", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>Gastos por día</div>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 80 }}>
+              {days.map(([date, amt]) => {
+                const d = new Date(date + "T12:00:00");
+                const label = dayNames[d.getDay()] + " " + d.getDate();
+                const pct = maxAmt > 0 ? (amt / maxAmt) * 100 : 0;
+                return (
+                  <div key={date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                    <div style={{ fontSize: 9, color: "#00D4AA", fontWeight: 700 }}>${amt}</div>
+                    <div style={{ width: "100%", maxWidth: 32, height: `${Math.max(pct, 8)}%`, background: "linear-gradient(180deg, #00D4AA, #00B4D8)", borderRadius: "4px 4px 0 0", transition: "height 0.5s", minHeight: 4 }} />
+                    <div style={{ fontSize: 9, color: "#6B7280", whiteSpace: "nowrap" }}>{label}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        );
+      })()}
+
     </div>
   );
 }
@@ -285,18 +331,20 @@ function FlightsSection({ data, updateData }) {
     updateData({ ...data, flights });
   };
 
-  const getTrackingUrl = (flight) => {
-    if (!flight.flightNumber || !flight.date) return null;
+  const getFlightLinks = (flight) => {
+    if (!flight.flightNumber) return null;
     const num = flight.flightNumber.replace(/\s/g, '');
-    const d = flight.date.replace(/-/g, '');
-    return `https://www.google.com/travel/flights?q=${num}+${d}`;
+    return {
+      google: `https://www.google.com/search?q=vuelo+${num}+${flight.date || ''}`,
+      flightaware: `https://www.flightaware.com/live/flight/${num}`,
+    };
   };
 
   return (
     <div>
       <div style={{ fontSize: 18, fontWeight: 800, color: "#E8ECF4", marginBottom: 16, fontFamily: "'Playfair Display', serif" }}>✈️ Vuelos</div>
       {(data.flights || []).map((flight) => {
-        const trackUrl = getTrackingUrl(flight);
+        const links = getFlightLinks(flight);
         return (
         <Card key={flight.id} style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -318,11 +366,17 @@ function FlightsSection({ data, updateData }) {
           </div>
           <Input label="Código Confirmación" value={flight.confirmation} onChange={(v) => update(flight.id, "confirmation", v)} placeholder="ABC123" />
           <Input label="Notas" value={flight.notes} onChange={(v) => update(flight.id, "notes", v)} placeholder="Terminal, gate, etc." />
-          {trackUrl && (
-            <a href={trackUrl} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(0,180,216,0.08)", borderRadius: 10, textDecoration: "none", marginTop: 4, border: "1px solid rgba(0,180,216,0.15)" }}>
-              <span style={{ fontSize: 16 }}>🔍</span>
-              <span style={{ fontSize: 13, color: "#00B4D8", fontWeight: 600 }}>Ver vuelo {flight.flightNumber} en Google Flights</span>
-            </a>
+          {links && (
+            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+              <a href={links.google} target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 12px", background: "rgba(0,180,216,0.08)", borderRadius: 10, textDecoration: "none", border: "1px solid rgba(0,180,216,0.15)" }}>
+                <span style={{ fontSize: 14 }}>🔍</span>
+                <span style={{ fontSize: 12, color: "#00B4D8", fontWeight: 600 }}>Google</span>
+              </a>
+              <a href={links.flightaware} target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 12px", background: "rgba(0,212,170,0.08)", borderRadius: 10, textDecoration: "none", border: "1px solid rgba(0,212,170,0.15)" }}>
+                <span style={{ fontSize: 14 }}>📡</span>
+                <span style={{ fontSize: 12, color: "#00D4AA", fontWeight: 600 }}>FlightAware</span>
+              </a>
+            </div>
           )}
         </Card>
         );
@@ -699,13 +753,16 @@ function ItinerarySection({ data, updateData }) {
         const isEditing = editing === day.id;
         const d = day.date ? new Date(day.date + "T12:00:00") : null;
         const dayLabel = d ? dayNames[d.getDay()] : "";
+        const today = new Date().toISOString().split("T")[0];
+        const isToday = day.date === today;
 
         return (
-          <Card key={day.id} style={{ marginBottom: 12 }}>
+          <Card key={day.id} style={{ marginBottom: 12, borderColor: isToday ? "rgba(0,212,170,0.4)" : undefined, background: isToday ? "rgba(0,212,170,0.06)" : undefined, boxShadow: isToday ? "0 0 20px rgba(0,212,170,0.1)" : undefined }}>
+            {isToday && <div style={{ fontSize: 10, color: "#00D4AA", fontWeight: 800, textTransform: "uppercase", letterSpacing: 2, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 6, height: 6, borderRadius: 3, background: "#00D4AA", animation: "pulse 1.5s infinite" }} /> Hoy</div>}
             {/* Header */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
               <div>
-                <div style={{ fontSize: 11, color: "#00D4AA", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+                <div style={{ fontSize: 11, color: isToday ? "#00D4AA" : "#00D4AA", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
                   {dayLabel} {day.date?.slice(5)} — Día {idx + 1}
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: "#E8ECF4", marginTop: 4 }}>{day.title}</div>
@@ -769,6 +826,92 @@ function ItinerarySection({ data, updateData }) {
   );
 }
 
+function ChecklistSection({ data, updateData }) {
+  const [newItem, setNewItem] = useState("");
+  const checklist = data.checklist || [];
+  const checked = checklist.filter(i => i.checked).length;
+
+  const toggle = (id) => {
+    const updated = checklist.map(i => i.id === id ? { ...i, checked: !i.checked } : i);
+    updateData({ ...data, checklist: updated });
+  };
+  const add = () => {
+    if (!newItem.trim()) return;
+    updateData({ ...data, checklist: [...checklist, { id: Date.now().toString(), text: newItem.trim(), checked: false }] });
+    setNewItem("");
+  };
+  const remove = (id) => updateData({ ...data, checklist: checklist.filter(i => i.id !== id) });
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div style={{ fontSize: 18, fontWeight: 800, color: "#E8ECF4", fontFamily: "'Playfair Display', serif" }}>✅ Equipaje</div>
+        <span style={{ fontSize: 13, color: "#00D4AA", fontWeight: 700 }}>{checked}/{checklist.length}</span>
+      </div>
+
+      {checklist.length > 0 && (
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden", marginBottom: 4 }}>
+            <div style={{ height: "100%", width: `${checklist.length > 0 ? (checked / checklist.length) * 100 : 0}%`, background: "linear-gradient(90deg, #00D4AA, #00B4D8)", borderRadius: 3, transition: "width 0.5s" }} />
+          </div>
+          <div style={{ fontSize: 11, color: "#8892A4", textAlign: "right" }}>{Math.round(checklist.length > 0 ? (checked / checklist.length) * 100 : 0)}% listo</div>
+        </Card>
+      )}
+
+      {checklist.map((item) => (
+        <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+          <input type="checkbox" checked={item.checked} onChange={() => toggle(item.id)}
+            style={{ width: 20, height: 20, accentColor: "#00D4AA", flexShrink: 0, cursor: "pointer" }} />
+          <span style={{ flex: 1, fontSize: 14, color: item.checked ? "#6B7280" : "#E8ECF4", textDecoration: item.checked ? "line-through" : "none", transition: "all 0.2s" }}>{item.text}</span>
+          <button onClick={() => remove(item.id)} style={{ background: "none", border: "none", color: "#FF6B6B", fontSize: 11, cursor: "pointer", opacity: 0.4, padding: "4px" }}>✕</button>
+        </div>
+      ))}
+
+      <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+        <input value={newItem} onChange={(e) => setNewItem(e.target.value)} placeholder="Agregar item..."
+          onKeyDown={(e) => e.key === "Enter" && add()}
+          style={{ flex: 1, padding: "10px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#E8ECF4", fontSize: 14, outline: "none" }} />
+        <Btn onClick={add} small>+</Btn>
+      </div>
+    </div>
+  );
+}
+
+function NotesSection({ data, updateData }) {
+  const [text, setText] = useState(data.notes || "");
+  const saveTimeout = useRef(null);
+
+  useEffect(() => { setText(data.notes || ""); }, [data.notes]);
+
+  const handleChange = (val) => {
+    setText(val);
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    saveTimeout.current = setTimeout(() => {
+      updateData({ ...data, notes: val });
+    }, 500);
+  };
+
+  return (
+    <div>
+      <div style={{ fontSize: 18, fontWeight: 800, color: "#E8ECF4", marginBottom: 16, fontFamily: "'Playfair Display', serif" }}>📝 Notas</div>
+      <Card>
+        <textarea
+          value={text}
+          onChange={(e) => handleChange(e.target.value)}
+          placeholder={"Anotá lo que quieras...\n\nRestaurantes, direcciones, tips, cosas para comprar, etc."}
+          rows={15}
+          style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "#E8ECF4", fontSize: 14, outline: "none", resize: "vertical", boxSizing: "border-box", lineHeight: 1.7, fontFamily: "'DM Sans', sans-serif" }}
+          onFocus={(e) => (e.target.style.borderColor = "rgba(0,212,170,0.3)")}
+          onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.08)")}
+        />
+        <div style={{ fontSize: 11, color: "#6B7280", marginTop: 8, textAlign: "right" }}>
+          {text.length > 0 ? `${text.length} caracteres` : "Compartido entre todos"} · Se guarda automáticamente
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 // ========== MAIN APP ==========
 
 export default function App() {
@@ -827,6 +970,8 @@ export default function App() {
     expenses: <ExpensesSection data={data} updateData={updateData} />,
     tickets: <TicketsSection data={data} updateData={updateData} />,
     itinerary: <ItinerarySection data={data} updateData={updateData} />,
+    checklist: <ChecklistSection data={data} updateData={updateData} />,
+    notes: <NotesSection data={data} updateData={updateData} />,
   };
 
   return (
@@ -847,13 +992,15 @@ export default function App() {
       <div style={{ padding: "16px 16px 24px" }}>{sections[tab]}</div>
 
       {/* Bottom nav */}
-      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "rgba(10,14,26,0.95)", backdropFilter: "blur(20px)", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-around", padding: "6px 0 env(safe-area-inset-bottom, 8px)", zIndex: 20 }}>
+      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "rgba(10,14,26,0.95)", backdropFilter: "blur(20px)", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-around", padding: "6px 0 env(safe-area-inset-bottom, 8px)", zIndex: 20, overflowX: "auto" }}>
         <Tab active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon="🏠" label="Home" />
         <Tab active={tab === "flights"} onClick={() => setTab("flights")} icon="✈️" label="Vuelos" />
-        <Tab active={tab === "hotel" || tab === "car"} onClick={() => setTab(tab === "hotel" ? "car" : "hotel")} icon="🏠" label="Airbnb/Auto" />
+        <Tab active={tab === "hotel" || tab === "car"} onClick={() => setTab(tab === "hotel" ? "car" : "hotel")} icon="🏡" label="Aloj." />
         <Tab active={tab === "expenses"} onClick={() => setTab("expenses")} icon="💰" label="Gastos" badge={(data.expenses || []).length} />
-        <Tab active={tab === "tickets"} onClick={() => setTab("tickets")} icon="🎫" label="Tickets" badge={(data.tickets || []).length} />
-        <Tab active={tab === "itinerary"} onClick={() => setTab("itinerary")} icon="📋" label="Itinerario" />
+        <Tab active={tab === "itinerary"} onClick={() => setTab("itinerary")} icon="📋" label="Plan" />
+        <Tab active={tab === "tickets"} onClick={() => setTab("tickets")} icon="🎫" label="Tickets" />
+        <Tab active={tab === "checklist"} onClick={() => setTab("checklist")} icon="✅" label="Equipaje" badge={(data.checklist || []).filter(i => !i.checked).length || null} />
+        <Tab active={tab === "notes"} onClick={() => setTab("notes")} icon="📝" label="Notas" />
       </div>
     </div>
   );
