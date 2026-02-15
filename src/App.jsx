@@ -103,6 +103,186 @@ const DEFAULT_DATA = {
   notes: "",
 };
 
+// ========== HELPER: Extract URLs from text ==========
+
+const extractUrls = (text) => {
+  if (!text) return { urls: [], cleanText: text };
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const urls = [];
+  let match;
+  while ((match = urlRegex.exec(text)) !== null) {
+    urls.push(match[1]);
+  }
+  const cleanText = text.replace(urlRegex, '').replace(/📍\s*/g, '').trim();
+  return { urls, cleanText };
+};
+
+const isGoogleMapsUrl = (url) => {
+  return url.includes('maps.app.goo.gl') || url.includes('google.com/maps') || url.includes('goo.gl/maps');
+};
+
+// ========== MAP PREVIEW COMPONENT ==========
+
+function MapPreview({ url, address, lat, lon }) {
+  // Use OpenStreetMap static tile for preview
+  const mapLat = lat || 26.0112;
+  const mapLon = lon || -80.1495;
+  const zoom = 15;
+  
+  // OpenStreetMap embed URL
+  const osmEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${mapLon - 0.008},${mapLat - 0.005},${mapLon + 0.008},${mapLat + 0.005}&layer=mapnik&marker=${mapLat},${mapLon}`;
+  
+  // Static image fallback using OSM tile server
+  const tileX = Math.floor((mapLon + 180) / 360 * Math.pow(2, zoom));
+  const tileY = Math.floor((1 - Math.log(Math.tan(mapLat * Math.PI / 180) + 1 / Math.cos(mapLat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom));
+  const tileUrl = `https://tile.openstreetmap.org/${zoom}/${tileX}/${tileY}.png`;
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ display: "block", textDecoration: "none", marginTop: 12 }}
+    >
+      <div style={{
+        borderRadius: 14,
+        overflow: "hidden",
+        border: "1px solid rgba(0,212,170,0.2)",
+        background: "rgba(0,212,170,0.04)",
+        transition: "all 0.25s ease",
+        cursor: "pointer",
+      }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = "rgba(0,212,170,0.4)";
+          e.currentTarget.style.transform = "translateY(-1px)";
+          e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,212,170,0.12)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = "rgba(0,212,170,0.2)";
+          e.currentTarget.style.transform = "translateY(0)";
+          e.currentTarget.style.boxShadow = "none";
+        }}
+      >
+        {/* Map image area */}
+        <div style={{
+          position: "relative",
+          height: 160,
+          background: `url(${tileUrl}) center/cover no-repeat`,
+          backgroundColor: "rgba(0,30,40,0.5)",
+        }}>
+          {/* OSM iframe overlay for better map rendering */}
+          <iframe
+            src={osmEmbedUrl}
+            style={{
+              width: "100%",
+              height: "100%",
+              border: "none",
+              pointerEvents: "none",
+              position: "absolute",
+              top: 0,
+              left: 0,
+            }}
+            title="Mapa ubicación"
+            loading="lazy"
+          />
+          {/* Gradient overlay at bottom */}
+          <div style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 50,
+            background: "linear-gradient(transparent, rgba(10,14,26,0.9))",
+          }} />
+          {/* Pin icon overlay */}
+          <div style={{
+            position: "absolute",
+            top: 10,
+            right: 10,
+            background: "rgba(0,212,170,0.9)",
+            borderRadius: 8,
+            padding: "4px 8px",
+            fontSize: 11,
+            fontWeight: 700,
+            color: "#0A0E1A",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+          }}>
+            📍 Maps
+          </div>
+        </div>
+        {/* Bottom bar */}
+        <div style={{
+          padding: "10px 14px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          background: "rgba(0,212,170,0.06)",
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#E8ECF4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {address || "Ver ubicación"}
+            </div>
+            <div style={{ fontSize: 11, color: "#00D4AA", marginTop: 2 }}>
+              Abrir en Google Maps ↗
+            </div>
+          </div>
+          <div style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            background: "rgba(0,212,170,0.15)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 16,
+            flexShrink: 0,
+            marginLeft: 10,
+          }}>
+            🗺️
+          </div>
+        </div>
+      </div>
+    </a>
+  );
+}
+
+// ========== CLICKABLE LINK COMPONENT ==========
+
+function ClickableLink({ url, label }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "6px 12px",
+        background: "rgba(0,180,216,0.08)",
+        borderRadius: 10,
+        textDecoration: "none",
+        border: "1px solid rgba(0,180,216,0.15)",
+        marginTop: 6,
+        transition: "all 0.2s",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = "rgba(0,180,216,0.15)";
+        e.currentTarget.style.borderColor = "rgba(0,180,216,0.3)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "rgba(0,180,216,0.08)";
+        e.currentTarget.style.borderColor = "rgba(0,180,216,0.15)";
+      }}
+    >
+      <span style={{ fontSize: 12, color: "#00B4D8", fontWeight: 600 }}>{label || "Abrir link"} ↗</span>
+    </a>
+  );
+}
+
 // ========== UI COMPONENTS ==========
 
 const Card = ({ children, style, onClick }) => (
@@ -389,6 +569,16 @@ function HotelSection({ data, updateData }) {
   const h = data.hotel || {};
   const update = (field, val) => updateData({ ...data, hotel: { ...h, [field]: val } });
   const nights = h.checkIn && h.checkOut ? Math.max(0, Math.ceil((new Date(h.checkOut) - new Date(h.checkIn)) / 86400000)) : 0;
+
+  // Extract Google Maps URL from notes
+  const { urls: noteUrls, cleanText: cleanNotes } = extractUrls(h.notes);
+  const mapsUrl = noteUrls.find(isGoogleMapsUrl);
+  const otherUrls = noteUrls.filter(u => !isGoogleMapsUrl(u));
+
+  // Coordinates for The Tides, Hollywood FL
+  const hotelLat = 26.0194;
+  const hotelLon = -80.1170;
+
   return (
     <div>
       <div style={{ fontSize: 18, fontWeight: 800, color: "#E8ECF4", marginBottom: 16, fontFamily: "'Playfair Display', serif" }}>🏠 Airbnb</div>
@@ -413,7 +603,26 @@ function HotelSection({ data, updateData }) {
             </label>
           </div>
         </div>
-        <Input label="Notas" value={h.notes} onChange={(v) => update("notes", v)} placeholder="WiFi, parking, etc." />
+        <Input label="Notas" value={h.notes} onChange={(v) => update("notes", v)} placeholder="WiFi, parking, link de Maps, etc." />
+
+        {/* Google Maps Preview */}
+        {mapsUrl && (
+          <MapPreview
+            url={mapsUrl}
+            address={h.address || h.name}
+            lat={hotelLat}
+            lon={hotelLon}
+          />
+        )}
+
+        {/* Other non-Maps links rendered as buttons */}
+        {otherUrls.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+            {otherUrls.map((url, i) => (
+              <ClickableLink key={i} url={url} label={url.replace(/https?:\/\/(www\.)?/, '').split('/')[0]} />
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   );
