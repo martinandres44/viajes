@@ -817,11 +817,14 @@ const DOC_CATEGORIES = [
 
 function DocumentsSection({ data, updateData }) {
   const [adding, setAdding] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name: "", url: "", category: "boarding", confirmation: "", notes: "" });
+  const [viewing, setViewing] = useState(null); // doc id being viewed
+  const [editing, setEditing] = useState(false); // editing mode within detail
   const [editForm, setEditForm] = useState({ name: "", url: "", category: "boarding", confirmation: "", notes: "" });
+  const [form, setForm] = useState({ name: "", url: "", category: "boarding", confirmation: "", notes: "" });
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const docs = data.documents || [];
+  const viewDoc = docs.find(d => d.id === viewing);
 
   const add = () => {
     if (!form.name) return;
@@ -831,28 +834,135 @@ function DocumentsSection({ data, updateData }) {
   };
   const remove = (id) => {
     updateData({ ...data, documents: docs.filter(d => d.id !== id) });
-    if (editing === id) setEditing(null);
+    setViewing(null);
+    setEditing(false);
+    setConfirmDelete(false);
   };
-  const startEdit = (doc) => {
-    setEditForm({ name: doc.name || "", url: doc.url || "", category: doc.category || "boarding", confirmation: doc.confirmation || "", notes: doc.notes || "" });
-    setEditing(doc.id);
+  const openDetail = (doc) => {
+    setViewing(doc.id);
+    setEditing(false);
+    setConfirmDelete(false);
     setAdding(false);
   };
+  const startEdit = () => {
+    if (!viewDoc) return;
+    setEditForm({ name: viewDoc.name || "", url: viewDoc.url || "", category: viewDoc.category || "boarding", confirmation: viewDoc.confirmation || "", notes: viewDoc.notes || "" });
+    setEditing(true);
+    setConfirmDelete(false);
+  };
   const saveEdit = () => {
-    if (!editing) return;
-    const updated = docs.map(d => d.id === editing ? { ...d, ...editForm } : d);
+    if (!viewing) return;
+    const updated = docs.map(d => d.id === viewing ? { ...d, ...editForm } : d);
     updateData({ ...data, documents: updated });
-    setEditing(null);
+    setEditing(false);
+  };
+  const goBack = () => {
+    setViewing(null);
+    setEditing(false);
+    setConfirmDelete(false);
   };
 
   const grouped = {};
   DOC_CATEGORIES.forEach(c => { grouped[c.id] = docs.filter(d => d.category === c.id); });
 
+  // ===== DETAIL VIEW =====
+  if (viewDoc) {
+    const cat = DOC_CATEGORIES.find(c => c.id === viewDoc.category);
+    return (
+      <div>
+        {/* Back button */}
+        <button onClick={goBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "#00D4AA", fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "0 0 16px", letterSpacing: 0.3 }}>
+          ← Documentos
+        </button>
+
+        <Card style={{ borderColor: `${cat?.color || "#9CA3AF"}30` }}>
+          {/* Category badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: `${cat?.color || "#9CA3AF"}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
+              {cat?.icon || "📄"}
+            </div>
+            <span style={{ fontSize: 11, color: cat?.color || "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>{cat?.label || "Documento"}</span>
+          </div>
+
+          {!editing ? (
+            <>
+              {/* Detail view */}
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#E8ECF4", marginBottom: 16 }}>{viewDoc.name}</div>
+
+              {viewDoc.confirmation && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, color: "#8892A4", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Código confirmación</div>
+                  <div style={{ fontSize: 15, color: "#00D4AA", fontWeight: 700, letterSpacing: 0.5 }}>🔑 {viewDoc.confirmation}</div>
+                </div>
+              )}
+
+              {viewDoc.url && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, color: "#8892A4", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Link</div>
+                  <a href={viewDoc.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", background: "rgba(0,180,216,0.08)", borderRadius: 10, textDecoration: "none", border: "1px solid rgba(0,180,216,0.15)", transition: "all 0.2s" }}>
+                    <span style={{ fontSize: 16 }}>🔗</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: "#00B4D8", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{viewDoc.url.replace(/https?:\/\/(www\.)?/, '').split('/')[0]}</div>
+                      <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{viewDoc.url}</div>
+                    </div>
+                    <span style={{ color: "#00B4D8", fontSize: 13, flexShrink: 0 }}>↗</span>
+                  </a>
+                </div>
+              )}
+
+              {viewDoc.notes && (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, color: "#8892A4", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Notas</div>
+                  <div style={{ fontSize: 14, color: "#C8CDD8", lineHeight: 1.5 }}>{viewDoc.notes}</div>
+                </div>
+              )}
+
+              {/* Action buttons at bottom */}
+              <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 8 }}>
+                <Btn onClick={startEdit} variant="secondary" small style={{ flex: 1 }}>✏️ Editar</Btn>
+                {!confirmDelete ? (
+                  <Btn onClick={() => setConfirmDelete(true)} variant="danger" small style={{ flex: 1 }}>🗑 Borrar</Btn>
+                ) : (
+                  <Btn onClick={() => remove(viewDoc.id)} variant="danger" small style={{ flex: 1, background: "rgba(255,107,107,0.3)" }}>¿Seguro? Confirmar</Btn>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Edit form */}
+              <div style={{ marginTop: 4 }}>
+                <Input label="Nombre" value={editForm.name} onChange={(v) => setEditForm({ ...editForm, name: v })} placeholder="Ej: Boarding Pass ida" />
+                <Input label="Link (Google Drive, email, web)" value={editForm.url} onChange={(v) => setEditForm({ ...editForm, url: v })} placeholder="https://..." />
+                <Input label="Código confirmación" value={editForm.confirmation} onChange={(v) => setEditForm({ ...editForm, confirmation: v })} placeholder="ABC123 (opcional)" />
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: "block", fontSize: 11, color: "#8892A4", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Categoría</label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {DOC_CATEGORIES.map(c => (
+                      <button key={c.id} onClick={() => setEditForm({ ...editForm, category: c.id })} style={{ padding: "6px 12px", borderRadius: 20, border: editForm.category === c.id ? `2px solid ${c.color}` : "1px solid rgba(255,255,255,0.1)", background: editForm.category === c.id ? `${c.color}20` : "transparent", color: editForm.category === c.id ? c.color : "#8892A4", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
+                        {c.icon} {c.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <Input label="Notas" value={editForm.notes} onChange={(v) => setEditForm({ ...editForm, notes: v })} placeholder="Opcional" />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn onClick={saveEdit} small style={{ flex: 1 }}>✓ Guardar</Btn>
+                  <Btn onClick={() => setEditing(false)} variant="secondary" small>Cancelar</Btn>
+                </div>
+              </div>
+            </>
+          )}
+        </Card>
+      </div>
+    );
+  }
+
+  // ===== LIST VIEW =====
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div style={{ fontSize: 18, fontWeight: 800, color: "#E8ECF4", fontFamily: "'Playfair Display', serif" }}>📁 Documentos</div>
-        <Btn onClick={() => { setAdding(!adding); setEditing(null); }} small>{adding ? "✕ Cerrar" : "+ Agregar"}</Btn>
+        <Btn onClick={() => setAdding(!adding)} small>{adding ? "✕ Cerrar" : "+ Agregar"}</Btn>
       </div>
 
       {adding && (
@@ -891,58 +1001,19 @@ function DocumentsSection({ data, updateData }) {
             <div style={{ fontSize: 12, color: cat.color, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
               {cat.icon} {cat.label}
             </div>
-            {catDocs.map(doc => {
-              const isEditing = editing === doc.id;
-              return (
-                <Card key={doc.id} style={{ marginBottom: 8, padding: 14, borderColor: isEditing ? "rgba(0,212,170,0.2)" : undefined }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "#E8ECF4" }}>{doc.name}</div>
-                      {doc.confirmation && (
-                        <div style={{ fontSize: 12, color: "#00D4AA", fontWeight: 600, marginTop: 4 }}>🔑 {doc.confirmation}</div>
-                      )}
-                      {doc.notes && <div style={{ fontSize: 12, color: "#8892A4", marginTop: 4 }}>{doc.notes}</div>}
-                    </div>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-                      {doc.url && !isEditing && (
-                        <a href={doc.url} target="_blank" rel="noopener noreferrer" style={{ padding: "6px 12px", background: "rgba(0,180,216,0.1)", borderRadius: 8, textDecoration: "none", fontSize: 12, color: "#00B4D8", fontWeight: 600, border: "1px solid rgba(0,180,216,0.15)" }}>
-                          Abrir ↗
-                        </a>
-                      )}
-                      {!isEditing && (
-                        <button onClick={() => startEdit(doc)} style={{ background: "none", border: "none", color: "#8892A4", fontSize: 12, cursor: "pointer", padding: "4px" }}>✏️</button>
-                      )}
-                      {!isEditing && (
-                        <button onClick={() => remove(doc.id)} style={{ background: "none", border: "none", color: "#FF6B6B", fontSize: 11, cursor: "pointer", opacity: 0.5, padding: "4px" }}>✕</button>
-                      )}
-                    </div>
+            {catDocs.map(doc => (
+              <Card key={doc.id} onClick={() => openDetail(doc)} style={{ marginBottom: 8, padding: 14, cursor: "pointer" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#E8ECF4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.name}</div>
+                    {doc.confirmation && (
+                      <div style={{ fontSize: 11, color: "#00D4AA", fontWeight: 600, marginTop: 3 }}>🔑 {doc.confirmation}</div>
+                    )}
                   </div>
-                  {isEditing && (
-                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)", animation: "fadeIn 0.2s ease" }}>
-                      <Input label="Nombre" value={editForm.name} onChange={(v) => setEditForm({ ...editForm, name: v })} placeholder="Ej: Boarding Pass ida, Reserva Airbnb" />
-                      <Input label="Link (Google Drive, email, web)" value={editForm.url} onChange={(v) => setEditForm({ ...editForm, url: v })} placeholder="https://..." />
-                      <Input label="Código confirmación" value={editForm.confirmation} onChange={(v) => setEditForm({ ...editForm, confirmation: v })} placeholder="ABC123 (opcional)" />
-                      <div style={{ marginBottom: 14 }}>
-                        <label style={{ display: "block", fontSize: 11, color: "#8892A4", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Categoría</label>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                          {DOC_CATEGORIES.map(c => (
-                            <button key={c.id} onClick={() => setEditForm({ ...editForm, category: c.id })} style={{ padding: "6px 12px", borderRadius: 20, border: editForm.category === c.id ? `2px solid ${c.color}` : "1px solid rgba(255,255,255,0.1)", background: editForm.category === c.id ? `${c.color}20` : "transparent", color: editForm.category === c.id ? c.color : "#8892A4", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
-                              {c.icon} {c.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <Input label="Notas" value={editForm.notes} onChange={(v) => setEditForm({ ...editForm, notes: v })} placeholder="Opcional" />
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <Btn onClick={saveEdit} small style={{ flex: 1 }}>✓ Guardar</Btn>
-                        <Btn onClick={() => setEditing(null)} variant="secondary" small>Cancelar</Btn>
-                        <Btn onClick={() => remove(doc.id)} variant="danger" small>🗑</Btn>
-                      </div>
-                    </div>
-                  )}
-                </Card>
-              );
-            })}
+                  <span style={{ color: "#4B5563", fontSize: 14, flexShrink: 0 }}>›</span>
+                </div>
+              </Card>
+            ))}
           </div>
         );
       })}
