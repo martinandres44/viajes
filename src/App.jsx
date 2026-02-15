@@ -808,7 +808,7 @@ function ExpensesSection({ data, updateData }) {
 }
 
 const DOC_CATEGORIES = [
-  { id: "vuelos", label: "Vuelos", icon: "🛫", color: "#F472B6" },
+  { id: "boarding", label: "Boarding Pass", icon: "🛫", color: "#F472B6" },
   { id: "airbnb", label: "Airbnb", icon: "🏡", color: "#FF5A5F" },
   { id: "car", label: "Auto Rental", icon: "🚘", color: "#34D399" },
   { id: "insurance", label: "Seguro", icon: "🛡️", color: "#60A5FA" },
@@ -818,6 +818,7 @@ const DOC_CATEGORIES = [
 
 function DocumentsSection({ data, updateData }) {
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: "", url: "", category: "boarding", confirmation: "", notes: "" });
 
   const docs = data.documents || [];
@@ -828,37 +829,65 @@ function DocumentsSection({ data, updateData }) {
     setForm({ name: "", url: "", category: "boarding", confirmation: "", notes: "" });
     setAdding(false);
   };
-  const remove = (id) => updateData({ ...data, documents: docs.filter(d => d.id !== id) });
+  const remove = (id) => {
+    updateData({ ...data, documents: docs.filter(d => d.id !== id) });
+    if (editing === id) setEditing(null);
+  };
+  const updateDoc = (id, field, val) => {
+    const updated = docs.map(d => d.id === id ? { ...d, [field]: val } : d);
+    updateData({ ...data, documents: updated });
+  };
+  const startEdit = (doc) => {
+    setEditing(doc.id);
+    setAdding(false);
+  };
 
   const grouped = {};
   DOC_CATEGORIES.forEach(c => { grouped[c.id] = docs.filter(d => d.category === c.id); });
+
+  const DocForm = ({ doc, isNew }) => {
+    const values = isNew ? form : doc;
+    const onChange = isNew
+      ? (field, val) => setForm({ ...form, [field]: val })
+      : (field, val) => updateDoc(doc.id, field, val);
+    const selectedCat = isNew ? form.category : doc.category;
+
+    return (
+      <Card style={{ marginBottom: 12, borderColor: "rgba(0,212,170,0.2)", animation: "fadeIn 0.2s ease" }}>
+        <Input label="Nombre" value={values.name} onChange={(v) => onChange("name", v)} placeholder="Ej: Boarding Pass ida, Reserva Airbnb" />
+        <Input label="Link (Google Drive, email, web)" value={values.url} onChange={(v) => onChange("url", v)} placeholder="https://..." />
+        <Input label="Código confirmación" value={values.confirmation} onChange={(v) => onChange("confirmation", v)} placeholder="ABC123 (opcional)" />
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: "block", fontSize: 11, color: "#8892A4", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Categoría</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {DOC_CATEGORIES.map(cat => (
+              <button key={cat.id} onClick={() => onChange("category", cat.id)} style={{ padding: "6px 12px", borderRadius: 20, border: selectedCat === cat.id ? `2px solid ${cat.color}` : "1px solid rgba(255,255,255,0.1)", background: selectedCat === cat.id ? `${cat.color}20` : "transparent", color: selectedCat === cat.id ? cat.color : "#8892A4", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
+                {cat.icon} {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <Input label="Notas" value={values.notes} onChange={(v) => onChange("notes", v)} placeholder="Opcional" />
+        {isNew ? (
+          <Btn onClick={add} style={{ width: "100%" }}>Guardar Documento</Btn>
+        ) : (
+          <div style={{ display: "flex", gap: 8 }}>
+            <Btn onClick={() => setEditing(null)} small style={{ flex: 1 }}>✓ Listo</Btn>
+            <Btn onClick={() => remove(doc.id)} variant="danger" small>🗑</Btn>
+          </div>
+        )}
+      </Card>
+    );
+  };
 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div style={{ fontSize: 18, fontWeight: 800, color: "#E8ECF4", fontFamily: "'Playfair Display', serif" }}>📁 Documentos</div>
-        <Btn onClick={() => setAdding(!adding)} small>{adding ? "✕ Cerrar" : "+ Agregar"}</Btn>
+        <Btn onClick={() => { setAdding(!adding); setEditing(null); }} small>{adding ? "✕ Cerrar" : "+ Agregar"}</Btn>
       </div>
 
-      {adding && (
-        <Card style={{ marginBottom: 16, borderColor: "rgba(0,212,170,0.2)" }}>
-          <Input label="Nombre" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="Ej: Boarding Pass ida, Reserva Airbnb" />
-          <Input label="Link (Google Drive, email, web)" value={form.url} onChange={(v) => setForm({ ...form, url: v })} placeholder="https://..." />
-          <Input label="Código confirmación" value={form.confirmation} onChange={(v) => setForm({ ...form, confirmation: v })} placeholder="ABC123 (opcional)" />
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ display: "block", fontSize: 11, color: "#8892A4", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Categoría</label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {DOC_CATEGORIES.map(cat => (
-                <button key={cat.id} onClick={() => setForm({ ...form, category: cat.id })} style={{ padding: "6px 12px", borderRadius: 20, border: form.category === cat.id ? `2px solid ${cat.color}` : "1px solid rgba(255,255,255,0.1)", background: form.category === cat.id ? `${cat.color}20` : "transparent", color: form.category === cat.id ? cat.color : "#8892A4", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
-                  {cat.icon} {cat.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <Input label="Notas" value={form.notes} onChange={(v) => setForm({ ...form, notes: v })} placeholder="Opcional" />
-          <Btn onClick={add} style={{ width: "100%" }}>Guardar Documento</Btn>
-        </Card>
-      )}
+      {adding && <DocForm isNew />}
 
       {docs.length === 0 && !adding && (
         <Card style={{ textAlign: "center", padding: 40 }}>
@@ -876,27 +905,33 @@ function DocumentsSection({ data, updateData }) {
             <div style={{ fontSize: 12, color: cat.color, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
               {cat.icon} {cat.label}
             </div>
-            {catDocs.map(doc => (
-              <Card key={doc.id} style={{ marginBottom: 8, padding: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: "#E8ECF4" }}>{doc.name}</div>
-                    {doc.confirmation && (
-                      <div style={{ fontSize: 12, color: "#00D4AA", fontWeight: 600, marginTop: 4 }}>🔑 {doc.confirmation}</div>
-                    )}
-                    {doc.notes && <div style={{ fontSize: 12, color: "#8892A4", marginTop: 4 }}>{doc.notes}</div>}
+            {catDocs.map(doc => {
+              if (editing === doc.id) {
+                return <DocForm key={doc.id} doc={doc} isNew={false} />;
+              }
+              return (
+                <Card key={doc.id} style={{ marginBottom: 8, padding: 14 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#E8ECF4" }}>{doc.name}</div>
+                      {doc.confirmation && (
+                        <div style={{ fontSize: 12, color: "#00D4AA", fontWeight: 600, marginTop: 4 }}>🔑 {doc.confirmation}</div>
+                      )}
+                      {doc.notes && <div style={{ fontSize: 12, color: "#8892A4", marginTop: 4 }}>{doc.notes}</div>}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                      {doc.url && (
+                        <a href={doc.url} target="_blank" rel="noopener noreferrer" style={{ padding: "6px 12px", background: "rgba(0,180,216,0.1)", borderRadius: 8, textDecoration: "none", fontSize: 12, color: "#00B4D8", fontWeight: 600, border: "1px solid rgba(0,180,216,0.15)" }}>
+                          Abrir ↗
+                        </a>
+                      )}
+                      <button onClick={() => startEdit(doc)} style={{ background: "none", border: "none", color: "#8892A4", fontSize: 12, cursor: "pointer", padding: "4px" }}>✏️</button>
+                      <button onClick={() => remove(doc.id)} style={{ background: "none", border: "none", color: "#FF6B6B", fontSize: 11, cursor: "pointer", opacity: 0.5, padding: "4px" }}>✕</button>
+                    </div>
                   </div>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-                    {doc.url && (
-                      <a href={doc.url} target="_blank" rel="noopener noreferrer" style={{ padding: "6px 12px", background: "rgba(0,180,216,0.1)", borderRadius: 8, textDecoration: "none", fontSize: 12, color: "#00B4D8", fontWeight: 600, border: "1px solid rgba(0,180,216,0.15)" }}>
-                        Abrir ↗
-                      </a>
-                    )}
-                    <button onClick={() => remove(doc.id)} style={{ background: "none", border: "none", color: "#FF6B6B", fontSize: 11, cursor: "pointer", opacity: 0.5, padding: "4px" }}>✕</button>
-                  </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         );
       })}
