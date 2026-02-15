@@ -3,6 +3,9 @@ import { onTripData, saveTripData } from "./firebase";
 
 // ========== CONSTANTS ==========
 
+// Google Sheets integration - Reemplazá con tu URL de Apps Script (ver README)
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycbzFtyCPdPbHqAvymF1HnJdCkHA_wHvBCYdgOVFlYVGoOt3hV5YeBS1Ewmm2ZtwRL-U/exec";
+
 const WEATHER_LAT = 26.0112;
 const WEATHER_LON = -80.1495;
 const WEATHER_URL = `https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LAT}&longitude=${WEATHER_LON}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode,wind_speed_10m_max,uv_index_max&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weathercode&timezone=America/New_York&forecast_days=3`;
@@ -50,7 +53,7 @@ const PAYMENT_METHODS = [
 ];
 
 const BANKS = [
-  { id: "Galicia", label: "Galicia", icon: "🏦", color: "#FFA500" },
+  { id: "visa_bank", label: "Visa", icon: "🏦", color: "#1A1F71" },
   { id: "bbva", label: "BBVA", icon: "🏦", color: "#004481" },
   { id: "icbc", label: "ICBC", icon: "🏦", color: "#C8102E" },
 ];
@@ -234,7 +237,6 @@ function DashboardSection({ data, updateData }) {
         <Card>
           <div style={{ fontSize: 11, color: "#8892A4", marginBottom: 4, textTransform: "uppercase", letterSpacing: 1 }}>Gastos totales</div>
           <div style={{ fontSize: 26, fontWeight: 800, color: "#00D4AA" }}>${totalExpenses.toLocaleString()}</div>
-          {data.budget?.total > 0 && <div style={{ fontSize: 11, color: "#8892A4", marginTop: 2 }}>de ${data.budget.total.toLocaleString()}</div>}
         </Card>
         <Card>
           <div style={{ fontSize: 11, color: "#8892A4", marginBottom: 4, textTransform: "uppercase", letterSpacing: 1 }}>Vuelos</div>
@@ -242,18 +244,6 @@ function DashboardSection({ data, updateData }) {
           <div style={{ fontSize: 11, color: "#8892A4", marginTop: 2 }}>confirmados</div>
         </Card>
       </div>
-
-      {data.budget?.total > 0 && (
-        <Card style={{ marginBottom: 16 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-            <span style={{ fontSize: 12, color: "#8892A4" }}>Presupuesto</span>
-            <span style={{ fontSize: 12, color: totalExpenses > data.budget.total ? "#FF6B6B" : "#00D4AA", fontWeight: 700 }}>{Math.round((totalExpenses / data.budget.total) * 100)}%</span>
-          </div>
-          <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${Math.min(100, (totalExpenses / data.budget.total) * 100)}%`, background: totalExpenses > data.budget.total ? "linear-gradient(90deg, #FF6B6B, #FF8E8E)" : "linear-gradient(90deg, #00D4AA, #00B4D8)", borderRadius: 3, transition: "width 0.5s" }} />
-          </div>
-        </Card>
-      )}
 
       {pendingItems.length > 0 && (
         <Card style={{ borderColor: "rgba(255,230,109,0.15)", marginBottom: 12 }}>
@@ -280,11 +270,6 @@ function DashboardSection({ data, updateData }) {
         </Card>
       )}
 
-      <Card>
-        <div style={{ fontSize: 11, color: "#8892A4", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Presupuesto total (USD)</div>
-        <input type="number" value={data.budget?.total || ""} onChange={(e) => updateData({ ...data, budget: { ...data.budget, total: parseFloat(e.target.value) || 0 } })} placeholder="Ej: 5000"
-          style={{ width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#E8ECF4", fontSize: 16, outline: "none", boxSizing: "border-box" }} />
-      </Card>
     </div>
   );
 }
@@ -395,10 +380,36 @@ function ExpensesSection({ data, updateData }) {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ description: "", amount: "", category: "food", payment: "visa", bank: "visa_bank", date: new Date().toISOString().split("T")[0], notes: "" });
 
+  const sendToSheets = async (expense) => {
+    if (!SHEETS_URL || SHEETS_URL === "TU_APPS_SCRIPT_URL") return;
+    try {
+      const cat = CATEGORIES.find(c => c.id === expense.category);
+      const pm = PAYMENT_METHODS.find(p => p.id === expense.payment);
+      const bank = BANKS.find(b => b.id === expense.bank);
+      await fetch(SHEETS_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fecha: expense.date,
+          descripcion: expense.description,
+          monto: expense.amount,
+          categoria: cat?.label || expense.category,
+          pago: pm?.label || expense.payment,
+          banco: (expense.payment !== "cash" && bank) ? bank.label : "-",
+          notas: expense.notes || "",
+        }),
+      });
+    } catch (err) {
+      console.error("Error enviando a Sheets:", err);
+    }
+  };
+
   const addExpense = () => {
     if (!form.description || !form.amount) return;
     const expense = { ...form, id: Date.now().toString(), amount: parseFloat(form.amount), createdAt: new Date().toISOString() };
     updateData({ ...data, expenses: [expense, ...(data.expenses || [])] });
+    sendToSheets(expense);
     setForm({ description: "", amount: "", category: "food", payment: "visa", bank: "visa_bank", date: new Date().toISOString().split("T")[0], notes: "" });
     setAdding(false);
   };
@@ -618,6 +629,8 @@ function TicketsSection({ data, updateData }) {
 
 function ItinerarySection({ data, updateData }) {
   const [adding, setAdding] = useState(false);
+  const [expanded, setExpanded] = useState(null);
+  const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ date: "", title: "", activities: "", notes: "" });
 
   const add = () => {
@@ -626,7 +639,13 @@ function ItinerarySection({ data, updateData }) {
     updateData({ ...data, itinerary: [...(data.itinerary || []), item].sort((a, b) => a.date.localeCompare(b.date)) });
     setForm({ date: "", title: "", activities: "", notes: "" }); setAdding(false);
   };
-  const remove = (id) => updateData({ ...data, itinerary: (data.itinerary || []).filter((i) => i.id !== id) });
+  const remove = (id) => { updateData({ ...data, itinerary: (data.itinerary || []).filter((i) => i.id !== id) }); setExpanded(null); setEditing(null); };
+  const updateDay = (id, field, val) => {
+    const itinerary = (data.itinerary || []).map((d) => (d.id === id ? { ...d, [field]: val } : d));
+    updateData({ ...data, itinerary: itinerary.sort((a, b) => a.date.localeCompare(b.date)) });
+  };
+
+  const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
   return (
     <div>
@@ -655,27 +674,78 @@ function ItinerarySection({ data, updateData }) {
           <div style={{ fontSize: 14, color: "#8892A4" }}>Planificá tu itinerario día por día</div>
         </Card>
       )}
-      {(data.itinerary || []).map((day, idx) => (
-        <Card key={day.id} style={{ marginBottom: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-            <div>
-              <div style={{ fontSize: 11, color: "#00D4AA", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Día {idx + 1} — {day.date}</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#E8ECF4", marginTop: 4 }}>{day.title}</div>
-            </div>
-            <button onClick={() => remove(day.id)} style={{ background: "none", border: "none", color: "#FF6B6B", fontSize: 11, cursor: "pointer", opacity: 0.6 }}>eliminar</button>
-          </div>
-          {day.activities && (
-            <div style={{ marginTop: 8 }}>
-              {day.activities.split("\n").filter(Boolean).map((act, i) => (
-                <div key={i} style={{ fontSize: 13, color: "#C8CDD8", padding: "4px 0", display: "flex", gap: 8 }}>
-                  <span style={{ color: "#00D4AA", flexShrink: 0 }}>›</span>{act}
+      {(data.itinerary || []).map((day, idx) => {
+        const isOpen = expanded === day.id;
+        const isEditing = editing === day.id;
+        const d = day.date ? new Date(day.date + "T12:00:00") : null;
+        const dayLabel = d ? dayNames[d.getDay()] : "";
+
+        return (
+          <Card key={day.id} style={{ marginBottom: 12, cursor: "pointer", borderColor: isOpen ? "rgba(0,212,170,0.2)" : undefined }} onClick={() => { if (!isEditing) setExpanded(isOpen ? null : day.id); }}>
+            {/* Header - always visible */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ fontSize: 11, color: "#00D4AA", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+                    {dayLabel} {day.date?.slice(5)} — Día {idx + 1}
+                  </div>
+                  <span style={{ fontSize: 10, color: "#8892A4", transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}>▼</span>
                 </div>
-              ))}
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#E8ECF4", marginTop: 4 }}>{day.title}</div>
+              </div>
             </div>
-          )}
-          {day.notes && <div style={{ fontSize: 12, color: "#8892A4", marginTop: 8, fontStyle: "italic" }}>{day.notes}</div>}
-        </Card>
-      ))}
+
+            {/* Collapsed preview - show first activity */}
+            {!isOpen && day.activities && (
+              <div style={{ fontSize: 12, color: "#8892A4", marginTop: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {day.activities.split("\n").filter(Boolean)[0]}
+                {day.activities.split("\n").filter(Boolean).length > 1 && ` (+${day.activities.split("\n").filter(Boolean).length - 1} más)`}
+              </div>
+            )}
+
+            {/* Expanded view */}
+            {isOpen && !isEditing && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.06)", animation: "fadeIn 0.2s ease" }} onClick={(e) => e.stopPropagation()}>
+                {day.activities && (
+                  <div style={{ marginBottom: 10 }}>
+                    {day.activities.split("\n").filter(Boolean).map((act, i) => (
+                      <div key={i} style={{ fontSize: 13, color: "#C8CDD8", padding: "4px 0", display: "flex", gap: 8 }}>
+                        <span style={{ color: "#00D4AA", flexShrink: 0 }}>›</span>{act}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {day.notes && (
+                  <div style={{ fontSize: 13, color: "#C8CDD8", marginBottom: 10, padding: 12, background: "rgba(255,255,255,0.03)", borderRadius: 10, lineHeight: 1.6 }}>
+                    📝 {day.notes}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn onClick={() => setEditing(day.id)} variant="secondary" small>✏️ Editar</Btn>
+                  <Btn onClick={() => remove(day.id)} variant="danger" small>🗑 Eliminar</Btn>
+                </div>
+              </div>
+            )}
+
+            {/* Edit mode */}
+            {isOpen && isEditing && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.06)", animation: "fadeIn 0.2s ease" }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <Input label="Fecha" value={day.date} onChange={(v) => updateDay(day.id, "date", v)} type="date" />
+                  <Input label="Título" value={day.title} onChange={(v) => updateDay(day.id, "title", v)} />
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ display: "block", fontSize: 11, color: "#8892A4", marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Actividades (una por línea)</label>
+                  <textarea value={day.activities} onChange={(e) => updateDay(day.id, "activities", e.target.value)} rows={5}
+                    style={{ width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#E8ECF4", fontSize: 13, outline: "none", resize: "vertical", boxSizing: "border-box", lineHeight: 1.6 }} />
+                </div>
+                <Input label="Notas" value={day.notes} onChange={(v) => updateDay(day.id, "notes", v)} />
+                <Btn onClick={() => setEditing(null)} small style={{ width: "100%" }}>✓ Listo</Btn>
+              </div>
+            )}
+          </Card>
+        );
+      })}
     </div>
   );
 }
