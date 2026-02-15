@@ -46,17 +46,21 @@ const CATEGORIES = [
 ];
 
 const PAYMENT_METHODS = [
-  { id: "visa", label: "Visa", icon: "💳", color: "#1A1F71" },
-  { id: "mc", label: "MC", icon: "💳", color: "#EB001B" },
-  { id: "amex", label: "Amex", icon: "💳", color: "#006FCF" },
-  { id: "cash", label: "Cash", icon: "💵", color: "#16A34A" },
+  { id: "visa", label: "Visa", color: "#1A1F71" },
+  { id: "mc", label: "Mastercard", color: "#EB001B" },
+  { id: "amex", label: "Amex", color: "#2E77BC" },
+  { id: "cash", label: "Cash", color: "#16A34A" },
 ];
 
 const BANKS = [
-  { id: "visa_bank", label: "Visa", icon: "🏦", color: "#1A1F71" },
-  { id: "bbva", label: "BBVA", icon: "🏦", color: "#004481" },
-  { id: "icbc", label: "ICBC", icon: "🏦", color: "#C8102E" },
+  { id: "galicia", label: "Galicia", color: "#E35205" },
+  { id: "bbva", label: "BBVA", color: "#004481" },
+  { id: "icbc", label: "ICBC", color: "#C8102E" },
 ];
+
+const ColorDot = ({ color, size = 10 }) => (
+  <span style={{ display: "inline-block", width: size, height: size, borderRadius: "50%", background: color, flexShrink: 0, border: "1.5px solid rgba(255,255,255,0.15)" }} />
+);
 
 const DEFAULT_DATA = {
   flights: [
@@ -378,7 +382,7 @@ function CarSection({ data, updateData }) {
 
 function ExpensesSection({ data, updateData }) {
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ description: "", amount: "", category: "food", payment: "visa", bank: "visa_bank", date: new Date().toISOString().split("T")[0], notes: "" });
+  const [form, setForm] = useState({ description: "", amount: "", category: "food", payment: "visa", bank: "galicia", date: new Date().toISOString().split("T")[0], notes: "" });
 
   const sendToSheets = async (expense) => {
     if (!SHEETS_URL || SHEETS_URL === "TU_APPS_SCRIPT_URL") return;
@@ -410,7 +414,7 @@ function ExpensesSection({ data, updateData }) {
     const expense = { ...form, id: Date.now().toString(), amount: parseFloat(form.amount), createdAt: new Date().toISOString() };
     updateData({ ...data, expenses: [expense, ...(data.expenses || [])] });
     sendToSheets(expense);
-    setForm({ description: "", amount: "", category: "food", payment: "visa", bank: "visa_bank", date: new Date().toISOString().split("T")[0], notes: "" });
+    setForm({ description: "", amount: "", category: "food", payment: "visa", bank: "galicia", date: new Date().toISOString().split("T")[0], notes: "" });
     setAdding(false);
   };
 
@@ -464,8 +468,8 @@ function ExpensesSection({ data, updateData }) {
             <label style={{ display: "block", fontSize: 11, color: "#8892A4", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Medio de pago</label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {PAYMENT_METHODS.map((pm) => (
-                <button key={pm.id} onClick={() => setForm({ ...form, payment: pm.id })} style={{ padding: "6px 12px", borderRadius: 20, border: form.payment === pm.id ? `2px solid ${pm.color}` : "1px solid rgba(255,255,255,0.1)", background: form.payment === pm.id ? `${pm.color}25` : "transparent", color: form.payment === pm.id ? "#E8ECF4" : "#8892A4", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
-                  {pm.icon} {pm.label}
+                <button key={pm.id} onClick={() => setForm({ ...form, payment: pm.id })} style={{ padding: "6px 12px", borderRadius: 20, border: form.payment === pm.id ? `2px solid ${pm.color}` : "1px solid rgba(255,255,255,0.1)", background: form.payment === pm.id ? `${pm.color}25` : "transparent", color: form.payment === pm.id ? "#E8ECF4" : "#8892A4", fontSize: 12, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                  <ColorDot color={pm.color} /> {pm.label}
                 </button>
               ))}
             </div>
@@ -475,8 +479,8 @@ function ExpensesSection({ data, updateData }) {
               <label style={{ display: "block", fontSize: 11, color: "#8892A4", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Banco</label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {BANKS.map((bank) => (
-                  <button key={bank.id} onClick={() => setForm({ ...form, bank: bank.id })} style={{ padding: "6px 12px", borderRadius: 20, border: form.bank === bank.id ? `2px solid ${bank.color}` : "1px solid rgba(255,255,255,0.1)", background: form.bank === bank.id ? `${bank.color}25` : "transparent", color: form.bank === bank.id ? "#E8ECF4" : "#8892A4", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
-                    {bank.icon} {bank.label}
+                  <button key={bank.id} onClick={() => setForm({ ...form, bank: bank.id })} style={{ padding: "6px 12px", borderRadius: 20, border: form.bank === bank.id ? `2px solid ${bank.color}` : "1px solid rgba(255,255,255,0.1)", background: form.bank === bank.id ? `${bank.color}25` : "transparent", color: form.bank === bank.id ? "#E8ECF4" : "#8892A4", fontSize: 12, cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                    <ColorDot color={bank.color} /> {bank.label}
                   </button>
                 ))}
               </div>
