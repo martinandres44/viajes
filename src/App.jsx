@@ -598,105 +598,97 @@ function ExpensesSection({ data, updateData }) {
   );
 }
 
-function TicketsSection({ data, updateData }) {
+const DOC_CATEGORIES = [
+  { id: "boarding", label: "Boarding Pass", icon: "🛫", color: "#F472B6" },
+  { id: "airbnb", label: "Airbnb", icon: "🏡", color: "#FF5A5F" },
+  { id: "car", label: "Auto Rental", icon: "🚘", color: "#34D399" },
+  { id: "insurance", label: "Seguro", icon: "🛡️", color: "#60A5FA" },
+  { id: "ticket", label: "Ticket Evento", icon: "🎫", color: "#A78BFA" },
+  { id: "other", label: "Otro", icon: "📄", color: "#9CA3AF" },
+];
+
+function DocumentsSection({ data, updateData }) {
   const [adding, setAdding] = useState(false);
-  const [expanded, setExpanded] = useState(null);
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name: "", date: "", time: "", venue: "", confirmation: "", cost: "", notes: "" });
+  const [form, setForm] = useState({ name: "", url: "", category: "boarding", confirmation: "", notes: "" });
+
+  const docs = data.documents || [];
 
   const add = () => {
     if (!form.name) return;
-    const ticket = { ...form, id: Date.now().toString(), cost: parseFloat(form.cost) || 0 };
-    updateData({ ...data, tickets: [...(data.tickets || []), ticket] });
-    setForm({ name: "", date: "", time: "", venue: "", confirmation: "", cost: "", notes: "" }); setAdding(false);
+    updateData({ ...data, documents: [...docs, { ...form, id: Date.now().toString() }] });
+    setForm({ name: "", url: "", category: "boarding", confirmation: "", notes: "" });
+    setAdding(false);
   };
-  const remove = (id) => { updateData({ ...data, tickets: (data.tickets || []).filter((t) => t.id !== id) }); setExpanded(null); setEditing(null); };
-  const updateTicket = (id, field, val) => {
-    const tickets = (data.tickets || []).map((t) => (t.id === id ? { ...t, [field]: val } : t));
-    updateData({ ...data, tickets });
-  };
+  const remove = (id) => updateData({ ...data, documents: docs.filter(d => d.id !== id) });
+
+  const grouped = {};
+  DOC_CATEGORIES.forEach(c => { grouped[c.id] = docs.filter(d => d.category === c.id); });
 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: "#E8ECF4", fontFamily: "'Playfair Display', serif" }}>🎫 Tickets & Entradas</div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: "#E8ECF4", fontFamily: "'Playfair Display', serif" }}>📁 Documentos</div>
         <Btn onClick={() => setAdding(!adding)} small>{adding ? "✕ Cerrar" : "+ Agregar"}</Btn>
       </div>
+
       {adding && (
         <Card style={{ marginBottom: 16, borderColor: "rgba(0,212,170,0.2)" }}>
-          <Input label="Evento / Lugar" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="Everglades, NBA game, etc." />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <Input label="Fecha" value={form.date} onChange={(v) => setForm({ ...form, date: v })} type="date" />
-            <Input label="Hora" value={form.time} onChange={(v) => setForm({ ...form, time: v })} type="time" />
-          </div>
-          <Input label="Lugar" value={form.venue} onChange={(v) => setForm({ ...form, venue: v })} placeholder="Dirección o venue" />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <Input label="Confirmación" value={form.confirmation} onChange={(v) => setForm({ ...form, confirmation: v })} />
-            <Input label="Costo (USD)" value={form.cost} onChange={(v) => setForm({ ...form, cost: v })} type="number" />
-          </div>
-          <Input label="Notas" value={form.notes} onChange={(v) => setForm({ ...form, notes: v })} />
-          <Btn onClick={add} style={{ width: "100%" }}>Guardar Ticket</Btn>
-        </Card>
-      )}
-      {(data.tickets || []).length === 0 && !adding && (
-        <Card style={{ textAlign: "center", padding: 40 }}>
-          <div style={{ fontSize: 40, marginBottom: 10 }}>🎟️</div>
-          <div style={{ fontSize: 14, color: "#8892A4" }}>Agregá tus tickets y entradas</div>
-        </Card>
-      )}
-      {(data.tickets || []).map((t) => {
-        const isOpen = expanded === t.id;
-        const isEditing = editing === t.id;
-        return (
-          <Card key={t.id} style={{ marginBottom: 10, cursor: "pointer", borderColor: isOpen ? "rgba(0,212,170,0.2)" : undefined }} onClick={() => { if (!isEditing) setExpanded(isOpen ? null : t.id); }}>
-            {/* Header row - always visible */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "#E8ECF4" }}>{t.name}</div>
-                  <span style={{ fontSize: 10, color: "#8892A4", transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}>▼</span>
-                </div>
-                <div style={{ fontSize: 12, color: "#8892A4", marginTop: 4 }}>{t.date && `📅 ${t.date}`} {t.time && `· ${t.time}`}</div>
-              </div>
-              {t.cost > 0 && <div style={{ fontSize: 15, fontWeight: 700, color: "#E8ECF4", flexShrink: 0 }}>${t.cost}</div>}
+          <Input label="Nombre" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="Ej: Boarding Pass ida, Reserva Airbnb" />
+          <Input label="Link (Google Drive, email, web)" value={form.url} onChange={(v) => setForm({ ...form, url: v })} placeholder="https://..." />
+          <Input label="Código confirmación" value={form.confirmation} onChange={(v) => setForm({ ...form, confirmation: v })} placeholder="ABC123 (opcional)" />
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ display: "block", fontSize: 11, color: "#8892A4", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Categoría</label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {DOC_CATEGORIES.map(cat => (
+                <button key={cat.id} onClick={() => setForm({ ...form, category: cat.id })} style={{ padding: "6px 12px", borderRadius: 20, border: form.category === cat.id ? `2px solid ${cat.color}` : "1px solid rgba(255,255,255,0.1)", background: form.category === cat.id ? `${cat.color}20` : "transparent", color: form.category === cat.id ? cat.color : "#8892A4", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
+                  {cat.icon} {cat.label}
+                </button>
+              ))}
             </div>
+          </div>
+          <Input label="Notas" value={form.notes} onChange={(v) => setForm({ ...form, notes: v })} placeholder="Opcional" />
+          <Btn onClick={add} style={{ width: "100%" }}>Guardar Documento</Btn>
+        </Card>
+      )}
 
-            {/* Expanded details */}
-            {isOpen && !isEditing && (
-              <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.06)", animation: "fadeIn 0.2s ease" }} onClick={(e) => e.stopPropagation()}>
-                {t.venue && <div style={{ fontSize: 13, color: "#C8CDD8", marginBottom: 8 }}>📍 {t.venue}</div>}
-                {t.confirmation && <div style={{ fontSize: 13, color: "#00D4AA", marginBottom: 8, fontWeight: 600 }}>🔑 Confirmación: {t.confirmation}</div>}
-                {t.cost > 0 && <div style={{ fontSize: 13, color: "#C8CDD8", marginBottom: 8 }}>💰 Costo: ${t.cost}</div>}
-                {t.notes && (
-                  <div style={{ fontSize: 13, color: "#C8CDD8", marginBottom: 8, padding: 12, background: "rgba(255,255,255,0.03)", borderRadius: 10, lineHeight: 1.6 }}>
-                    📝 {t.notes}
+      {docs.length === 0 && !adding && (
+        <Card style={{ textAlign: "center", padding: 40 }}>
+          <div style={{ fontSize: 40, marginBottom: 10 }}>📁</div>
+          <div style={{ fontSize: 14, color: "#8892A4" }}>Guardá links a tus confirmaciones y documentos</div>
+          <div style={{ fontSize: 12, color: "#6B7280", marginTop: 8 }}>Subí los PDFs a Google Drive y pegá el link acá</div>
+        </Card>
+      )}
+
+      {DOC_CATEGORIES.map(cat => {
+        const catDocs = grouped[cat.id];
+        if (!catDocs || catDocs.length === 0) return null;
+        return (
+          <div key={cat.id} style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: cat.color, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+              {cat.icon} {cat.label}
+            </div>
+            {catDocs.map(doc => (
+              <Card key={doc.id} style={{ marginBottom: 8, padding: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#E8ECF4" }}>{doc.name}</div>
+                    {doc.confirmation && (
+                      <div style={{ fontSize: 12, color: "#00D4AA", fontWeight: 600, marginTop: 4 }}>🔑 {doc.confirmation}</div>
+                    )}
+                    {doc.notes && <div style={{ fontSize: 12, color: "#8892A4", marginTop: 4 }}>{doc.notes}</div>}
                   </div>
-                )}
-                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                  <Btn onClick={() => setEditing(t.id)} variant="secondary" small>✏️ Editar</Btn>
-                  <Btn onClick={() => remove(t.id)} variant="danger" small>🗑 Eliminar</Btn>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                    {doc.url && (
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer" style={{ padding: "6px 12px", background: "rgba(0,180,216,0.1)", borderRadius: 8, textDecoration: "none", fontSize: 12, color: "#00B4D8", fontWeight: 600, border: "1px solid rgba(0,180,216,0.15)" }}>
+                        Abrir ↗
+                      </a>
+                    )}
+                    <button onClick={() => remove(doc.id)} style={{ background: "none", border: "none", color: "#FF6B6B", fontSize: 11, cursor: "pointer", opacity: 0.5, padding: "4px" }}>✕</button>
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {/* Edit mode */}
-            {isOpen && isEditing && (
-              <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.06)", animation: "fadeIn 0.2s ease" }} onClick={(e) => e.stopPropagation()}>
-                <Input label="Evento / Lugar" value={t.name} onChange={(v) => updateTicket(t.id, "name", v)} />
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <Input label="Fecha" value={t.date} onChange={(v) => updateTicket(t.id, "date", v)} type="date" />
-                  <Input label="Hora" value={t.time} onChange={(v) => updateTicket(t.id, "time", v)} type="time" />
-                </div>
-                <Input label="Lugar" value={t.venue} onChange={(v) => updateTicket(t.id, "venue", v)} />
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <Input label="Confirmación" value={t.confirmation} onChange={(v) => updateTicket(t.id, "confirmation", v)} />
-                  <Input label="Costo (USD)" value={t.cost} onChange={(v) => updateTicket(t.id, "cost", parseFloat(v) || 0)} type="number" />
-                </div>
-                <Input label="Notas" value={t.notes} onChange={(v) => updateTicket(t.id, "notes", v)} />
-                <Btn onClick={() => setEditing(null)} small style={{ width: "100%" }}>✓ Listo</Btn>
-              </div>
-            )}
-          </Card>
+              </Card>
+            ))}
+          </div>
         );
       })}
     </div>
@@ -877,41 +869,6 @@ function ChecklistSection({ data, updateData }) {
   );
 }
 
-function NotesSection({ data, updateData }) {
-  const [text, setText] = useState(data.notes || "");
-  const saveTimeout = useRef(null);
-
-  useEffect(() => { setText(data.notes || ""); }, [data.notes]);
-
-  const handleChange = (val) => {
-    setText(val);
-    if (saveTimeout.current) clearTimeout(saveTimeout.current);
-    saveTimeout.current = setTimeout(() => {
-      updateData({ ...data, notes: val });
-    }, 500);
-  };
-
-  return (
-    <div>
-      <div style={{ fontSize: 18, fontWeight: 800, color: "#E8ECF4", marginBottom: 16, fontFamily: "'Playfair Display', serif" }}>📝 Notas</div>
-      <Card>
-        <textarea
-          value={text}
-          onChange={(e) => handleChange(e.target.value)}
-          placeholder={"Anotá lo que quieras...\n\nRestaurantes, direcciones, tips, cosas para comprar, etc."}
-          rows={15}
-          style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "#E8ECF4", fontSize: 14, outline: "none", resize: "vertical", boxSizing: "border-box", lineHeight: 1.7, fontFamily: "'DM Sans', sans-serif" }}
-          onFocus={(e) => (e.target.style.borderColor = "rgba(0,212,170,0.3)")}
-          onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.08)")}
-        />
-        <div style={{ fontSize: 11, color: "#6B7280", marginTop: 8, textAlign: "right" }}>
-          {text.length > 0 ? `${text.length} caracteres` : "Compartido entre todos"} · Se guarda automáticamente
-        </div>
-      </Card>
-    </div>
-  );
-}
-
 // ========== MAIN APP ==========
 
 export default function App() {
@@ -968,10 +925,9 @@ export default function App() {
     hotel: <HotelSection data={data} updateData={updateData} />,
     car: <CarSection data={data} updateData={updateData} />,
     expenses: <ExpensesSection data={data} updateData={updateData} />,
-    tickets: <TicketsSection data={data} updateData={updateData} />,
+    tickets: <DocumentsSection data={data} updateData={updateData} />,
     itinerary: <ItinerarySection data={data} updateData={updateData} />,
     checklist: <ChecklistSection data={data} updateData={updateData} />,
-    notes: <NotesSection data={data} updateData={updateData} />,
   };
 
   return (
@@ -998,9 +954,8 @@ export default function App() {
         <Tab active={tab === "hotel" || tab === "car"} onClick={() => setTab(tab === "hotel" ? "car" : "hotel")} icon="🏡" label="Aloj." />
         <Tab active={tab === "expenses"} onClick={() => setTab("expenses")} icon="💰" label="Gastos" badge={(data.expenses || []).length} />
         <Tab active={tab === "itinerary"} onClick={() => setTab("itinerary")} icon="📋" label="Plan" />
-        <Tab active={tab === "tickets"} onClick={() => setTab("tickets")} icon="🎫" label="Tickets" />
+        <Tab active={tab === "tickets"} onClick={() => setTab("tickets")} icon="📁" label="Docs" badge={(data.documents || []).length || null} />
         <Tab active={tab === "checklist"} onClick={() => setTab("checklist")} icon="✅" label="Equipaje" badge={(data.checklist || []).filter(i => !i.checked).length || null} />
-        <Tab active={tab === "notes"} onClick={() => setTab("notes")} icon="📝" label="Notas" />
       </div>
     </div>
   );
