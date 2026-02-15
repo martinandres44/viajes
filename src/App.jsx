@@ -65,7 +65,8 @@ const ColorDot = ({ color, size = 10 }) => (
 const DEFAULT_DATA = {
   flights: [
     { id: "f1", type: "ida", airline: "", flightNumber: "", from: "EZE", to: "MIA", date: "2026-03-17", time: "21:50", confirmation: "", status: "pendiente", notes: "Vuelo nocturno" },
-    { id: "f2", type: "vuelta", airline: "", flightNumber: "", from: "MIA", to: "EZE", date: "2026-03-24", time: "17:55", confirmation: "", status: "pendiente", notes: "" },
+    { id: "f2", type: "vuelta", airline: "", flightNumber: "", from: "MIA", to: "LIM", date: "2026-03-24", time: "17:55", confirmation: "", status: "pendiente", notes: "" },    { id: "f1", type: "ida", airline: "", flightNumber: "", from: "EZE", to: "MIA", date: "2026-03-17", time: "21:50", confirmation: "", status: "pendiente", notes: "Vuelo nocturno" },
+    { id: "f3", type: "vuelta", airline: "", flightNumber: "", from: "LIM", to: "EZE", date: "2026-03-24", time: "23:45", confirmation: "", status: "pendiente", notes: "" },    { id: "f1", type: "ida", airline: "", flightNumber: "", from: "EZE", to: "MIA", date: "2026-03-17", time: "21:50", confirmation: "", status: "pendiente", notes: "Vuelo nocturno" },
   ],
   hotel: { name: "Airbnb Hollywood Beach", address: "Hollywood Beach, FL", checkIn: "2026-03-18", checkOut: "2026-03-24", confirmation: "", totalCost: 0, currency: "USD", notes: "📍 https://maps.app.goo.gl/UvVzdYNsABFu2C2e7", paid: false },
   car: { company: "", pickUp: "2026-03-18", dropOff: "2026-03-24", confirmation: "", totalCost: 0, currency: "USD", notes: "", paid: false },
