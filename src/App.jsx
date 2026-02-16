@@ -518,13 +518,25 @@ function FlightsSection({ data, updateData }) {
     updateData({ ...data, flights });
   };
 
+  const AIRLINE_IATA = {
+    "latam": "LA", "lan": "LA", "aerolineas": "AR", "aerolineas argentinas": "AR",
+    "american": "AA", "american airlines": "AA", "united": "UA", "united airlines": "UA",
+    "delta": "DL", "delta airlines": "DL", "avianca": "AV", "copa": "CM", "copa airlines": "CM",
+    "gol": "G3", "azul": "AD", "jetsmart": "JA", "flybondi": "FO",
+    "iberia": "IB", "air europa": "UX", "british airways": "BA", "lufthansa": "LH",
+    "air france": "AF", "klm": "KL", "emirates": "EK", "qatar": "QR", "qatar airways": "QR",
+    "turkish": "TK", "turkish airlines": "TK", "tap": "TP", "tap portugal": "TP",
+    "spirit": "NK", "frontier": "F9", "jetblue": "B6", "southwest": "WN",
+    "sky": "H2", "sky airline": "H2", "volaris": "Y4", "viva": "VB",
+  };
+
   const getFlightLink = (flight) => {
-    if (!flight.flightNumber && !flight.airline) return null;
-    const airline = (flight.airline || '').trim();
+    if (!flight.flightNumber) return null;
     const num = (flight.flightNumber || '').replace(/\s/g, '');
-    const query = airline ? `${airline} ${num}` : num;
-    if (!query.trim()) return null;
-    return `https://www.google.com/search?q=vuelo+${encodeURIComponent(query.trim())}+${flight.date || ''}`;
+    const airlineKey = (flight.airline || '').toLowerCase().trim();
+    const iata = AIRLINE_IATA[airlineKey] || flight.airline?.replace(/\s/g, '') || '';
+    const code = iata + num;
+    return `https://www.google.com/search?q=${encodeURIComponent(code)}`;
   };
 
   return (
@@ -558,7 +570,6 @@ function FlightsSection({ data, updateData }) {
               <span style={{ fontSize: 14 }}>✈️</span>
               <span style={{ fontSize: 13, color: "#00B4D8", fontWeight: 600 }}>Ver estado del vuelo</span>
             </a>
-          )}
           )}
         </Card>
         );
