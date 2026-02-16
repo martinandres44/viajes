@@ -518,44 +518,20 @@ function FlightsSection({ data, updateData }) {
     updateData({ ...data, flights });
   };
 
-  const AIRLINE_IATA = {
-    "latam": "LA", "lan": "LA", "aerolineas": "AR", "aerolineas argentinas": "AR",
-    "american": "AA", "american airlines": "AA", "united": "UA", "united airlines": "UA",
-    "delta": "DL", "delta airlines": "DL", "avianca": "AV", "copa": "CM", "copa airlines": "CM",
-    "gol": "G3", "azul": "AD", "jetsmart": "JA", "flybondi": "FO",
-    "iberia": "IB", "air europa": "UX", "british airways": "BA", "lufthansa": "LH",
-    "air france": "AF", "klm": "KL", "emirates": "EK", "qatar": "QR", "qatar airways": "QR",
-    "turkish": "TK", "turkish airlines": "TK", "tap": "TP", "tap portugal": "TP",
-    "spirit": "NK", "frontier": "F9", "jetblue": "B6", "southwest": "WN",
-    "sky": "H2", "sky airline": "H2", "volaris": "Y4", "viva": "VB",
-  };
-
-  const getAirlineCode = (airline) => {
-    if (!airline) return "";
-    const key = airline.toLowerCase().trim();
-    if (AIRLINE_IATA[key]) return AIRLINE_IATA[key];
-    // If it's already a 2-letter code, use it
-    if (/^[A-Z0-9]{2}$/i.test(key)) return key.toUpperCase();
-    return airline.replace(/\s/g, '');
-  };
-
-  const getFlightLinks = (flight) => {
+  const getFlightLink = (flight) => {
     if (!flight.flightNumber && !flight.airline) return null;
+    const airline = (flight.airline || '').trim();
     const num = (flight.flightNumber || '').replace(/\s/g, '');
-    const hasLetters = /[a-zA-Z]/.test(num);
-    const fullNum = hasLetters ? num : (flight.airline ? getAirlineCode(flight.airline) + num : num);
-    if (!fullNum) return null;
-    return {
-      google: `https://www.google.com/search?q=vuelo+${fullNum}+${flight.date || ''}`,
-      flightaware: `https://www.flightaware.com/live/flight/${fullNum}`,
-    };
+    const query = airline ? `${airline} ${num}` : num;
+    if (!query.trim()) return null;
+    return `https://www.google.com/search?q=vuelo+${encodeURIComponent(query.trim())}+${flight.date || ''}`;
   };
 
   return (
     <div>
       <div style={{ fontSize: 18, fontWeight: 800, color: "#E8ECF4", marginBottom: 16, fontFamily: "'Playfair Display', serif" }}>✈️ Vuelos</div>
       {(data.flights || []).map((flight) => {
-        const links = getFlightLinks(flight);
+        const flightLink = getFlightLink(flight);
         return (
         <Card key={flight.id} style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -571,23 +547,18 @@ function FlightsSection({ data, updateData }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <Input label="Aerolínea" value={flight.airline} onChange={(v) => update(flight.id, "airline", v)} />
-            <Input label="Nro Vuelo" value={flight.flightNumber} onChange={(v) => update(flight.id, "flightNumber", v)} placeholder="AA1234" />
+            <Input label="Nro Vuelo" value={flight.flightNumber} onChange={(v) => update(flight.id, "flightNumber", v)} placeholder="1234" />
             <Input label="Fecha" value={flight.date} onChange={(v) => update(flight.id, "date", v)} type="date" />
             <Input label="Hora" value={flight.time} onChange={(v) => update(flight.id, "time", v)} type="time" />
           </div>
           <Input label="Código Confirmación" value={flight.confirmation} onChange={(v) => update(flight.id, "confirmation", v)} placeholder="ABC123" />
           <Input label="Notas" value={flight.notes} onChange={(v) => update(flight.id, "notes", v)} placeholder="Terminal, gate, etc." />
-          {links && (
-            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-              <a href={links.google} target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 12px", background: "rgba(0,180,216,0.08)", borderRadius: 10, textDecoration: "none", border: "1px solid rgba(0,180,216,0.15)" }}>
-                <span style={{ fontSize: 14 }}>🔍</span>
-                <span style={{ fontSize: 12, color: "#00B4D8", fontWeight: 600 }}>Google</span>
-              </a>
-              <a href={links.flightaware} target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 12px", background: "rgba(0,212,170,0.08)", borderRadius: 10, textDecoration: "none", border: "1px solid rgba(0,212,170,0.15)" }}>
-                <span style={{ fontSize: 14 }}>📡</span>
-                <span style={{ fontSize: 12, color: "#00D4AA", fontWeight: 600 }}>FlightAware</span>
-              </a>
-            </div>
+          {flightLink && (
+            <a href={flightLink} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px", background: "rgba(0,180,216,0.08)", borderRadius: 10, textDecoration: "none", border: "1px solid rgba(0,180,216,0.15)", marginTop: 4 }}>
+              <span style={{ fontSize: 14 }}>✈️</span>
+              <span style={{ fontSize: 13, color: "#00B4D8", fontWeight: 600 }}>Ver estado del vuelo</span>
+            </a>
+          )}
           )}
         </Card>
         );
