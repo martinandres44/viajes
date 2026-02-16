@@ -518,13 +518,32 @@ function FlightsSection({ data, updateData }) {
     updateData({ ...data, flights });
   };
 
+  const AIRLINE_IATA = {
+    "latam": "LA", "lan": "LA", "aerolineas": "AR", "aerolineas argentinas": "AR",
+    "american": "AA", "american airlines": "AA", "united": "UA", "united airlines": "UA",
+    "delta": "DL", "delta airlines": "DL", "avianca": "AV", "copa": "CM", "copa airlines": "CM",
+    "gol": "G3", "azul": "AD", "jetsmart": "JA", "flybondi": "FO",
+    "iberia": "IB", "air europa": "UX", "british airways": "BA", "lufthansa": "LH",
+    "air france": "AF", "klm": "KL", "emirates": "EK", "qatar": "QR", "qatar airways": "QR",
+    "turkish": "TK", "turkish airlines": "TK", "tap": "TP", "tap portugal": "TP",
+    "spirit": "NK", "frontier": "F9", "jetblue": "B6", "southwest": "WN",
+    "sky": "H2", "sky airline": "H2", "volaris": "Y4", "viva": "VB",
+  };
+
+  const getAirlineCode = (airline) => {
+    if (!airline) return "";
+    const key = airline.toLowerCase().trim();
+    if (AIRLINE_IATA[key]) return AIRLINE_IATA[key];
+    // If it's already a 2-letter code, use it
+    if (/^[A-Z0-9]{2}$/i.test(key)) return key.toUpperCase();
+    return airline.replace(/\s/g, '');
+  };
+
   const getFlightLinks = (flight) => {
     if (!flight.flightNumber && !flight.airline) return null;
     const num = (flight.flightNumber || '').replace(/\s/g, '');
-    // If flightNumber already has letters (e.g. "LA1234"), use as-is
-    // Otherwise prepend airline code from the airline field
     const hasLetters = /[a-zA-Z]/.test(num);
-    const fullNum = hasLetters ? num : (flight.airline ? flight.airline.replace(/\s/g, '') + num : num);
+    const fullNum = hasLetters ? num : (flight.airline ? getAirlineCode(flight.airline) + num : num);
     if (!fullNum) return null;
     return {
       google: `https://www.google.com/search?q=vuelo+${fullNum}+${flight.date || ''}`,
