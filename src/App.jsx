@@ -519,11 +519,16 @@ function FlightsSection({ data, updateData }) {
   };
 
   const getFlightLinks = (flight) => {
-    if (!flight.flightNumber) return null;
-    const num = flight.flightNumber.replace(/\s/g, '');
+    if (!flight.flightNumber && !flight.airline) return null;
+    const num = (flight.flightNumber || '').replace(/\s/g, '');
+    // If flightNumber already has letters (e.g. "LA1234"), use as-is
+    // Otherwise prepend airline code from the airline field
+    const hasLetters = /[a-zA-Z]/.test(num);
+    const fullNum = hasLetters ? num : (flight.airline ? flight.airline.replace(/\s/g, '') + num : num);
+    if (!fullNum) return null;
     return {
-      google: `https://www.google.com/search?q=vuelo+${num}+${flight.date || ''}`,
-      flightaware: `https://www.flightaware.com/live/flight/${num}`,
+      google: `https://www.google.com/search?q=vuelo+${fullNum}+${flight.date || ''}`,
+      flightaware: `https://www.flightaware.com/live/flight/${fullNum}`,
     };
   };
 
