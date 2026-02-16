@@ -1023,29 +1023,191 @@ function DocumentsSection({ data, updateData }) {
 
 function ItinerarySection({ data, updateData }) {
   const [adding, setAdding] = useState(false);
-  const [editing, setEditing] = useState(null);
+  const [viewing, setViewing] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ date: "", title: "", activities: "", notes: "" });
   const [form, setForm] = useState({ date: "", title: "", activities: "", notes: "" });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const itinerary = data.itinerary || [];
+  const viewDay = itinerary.find(d => d.id === viewing);
+
+  const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  const today = new Date().toISOString().split("T")[0];
 
   const add = () => {
     if (!form.date || !form.title) return;
     const item = { ...form, id: Date.now().toString() };
-    updateData({ ...data, itinerary: [...(data.itinerary || []), item].sort((a, b) => a.date.localeCompare(b.date)) });
-    setForm({ date: "", title: "", activities: "", notes: "" }); setAdding(false);
+    updateData({ ...data, itinerary: [...itinerary, item].sort((a, b) => a.date.localeCompare(b.date)) });
+    setForm({ date: "", title: "", activities: "", notes: "" });
+    setAdding(false);
   };
-  const remove = (id) => { updateData({ ...data, itinerary: (data.itinerary || []).filter((i) => i.id !== id) }); setEditing(null); };
-  const updateDay = (id, field, val) => {
-    const itinerary = (data.itinerary || []).map((d) => (d.id === id ? { ...d, [field]: val } : d));
-    updateData({ ...data, itinerary: itinerary.sort((a, b) => a.date.localeCompare(b.date)) });
+  const remove = (id) => {
+    updateData({ ...data, itinerary: itinerary.filter(i => i.id !== id) });
+    setViewing(null);
+    setEditing(false);
+    setConfirmDelete(false);
+  };
+  const openDetail = (day) => {
+    setViewing(day.id);
+    setEditing(false);
+    setConfirmDelete(false);
+    setAdding(false);
+  };
+  const startEdit = () => {
+    if (!viewDay) return;
+    setEditForm({ date: viewDay.date || "", title: viewDay.title || "", activities: viewDay.activities || "", notes: viewDay.notes || "" });
+    setEditing(true);
+    setConfirmDelete(false);
+  };
+  const saveEdit = () => {
+    if (!viewing) return;
+    const updated = itinerary.map(d => d.id === viewing ? { ...d, ...editForm } : d).sort((a, b) => a.date.localeCompare(b.date));
+    updateData({ ...data, itinerary: updated });
+    setEditing(false);
+  };
+  const goBack = () => {
+    setViewing(null);
+    setEditing(false);
+    setConfirmDelete(false);
   };
 
-  const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  // Helper to render activity lines with clickable URLs
+  const renderActivities = (activities) => {
+    if (!activities) return null;
+    return activities.split("\n").filter(Boolean).map((act, i) => {
+      const urlMatch = act.match(/(https?:\/\/[^\s]+)/);
+      if (urlMatch) {
+        const parts = act.split(urlMatch[0]);
+        return (
+          <div key={i} style={{ fontSize: 14, color: "#C8CDD8", padding: "5px 0", display: "flex", gap: 10, lineHeight: 1.5 }}>
+            <span style={{ color: "#00D4AA", flexShrink: 0, marginTop: 1 }}>›</span>
+            <span>{parts[0]}<a href={urlMatch[0]} target="_blank" rel="noopener noreferrer" style={{ color: "#00B4D8", textDecoration: "none", fontWeight: 600 }}>{urlMatch[0].replace(/https?:\/\/(www\.)?/, '').split('/')[0]}</a>{parts[1]}</span>
+          </div>
+        );
+      }
+      return (
+        <div key={i} style={{ fontSize: 14, color: "#C8CDD8", padding: "5px 0", display: "flex", gap: 10, lineHeight: 1.5 }}>
+          <span style={{ color: "#00D4AA", flexShrink: 0, marginTop: 1 }}>›</span>{act}
+        </div>
+      );
+    });
+  };
 
+  // ===== DETAIL VIEW =====
+  if (viewDay) {
+    const d = viewDay.date ? new Date(viewDay.date + "T12:00:00") : null;
+    const dayLabel = d ? dayNames[d.getDay()] : "";
+    const dayIdx = itinerary.findIndex(i => i.id === viewDay.id);
+    const isToday = viewDay.date === today;
+
+    // Navigation between days
+    const prevDay = dayIdx > 0 ? itinerary[dayIdx - 1] : null;
+    const nextDay = dayIdx < itinerary.length - 1 ? itinerary[dayIdx + 1] : null;
+
+    return (
+      <div>
+        {/* Back button */}
+        <button onClick={goBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "#00D4AA", fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "0 0 16px", letterSpacing: 0.3 }}>
+          ← Itinerario
+        </button>
+
+        <Card style={{ borderColor: isToday ? "rgba(0,212,170,0.4)" : undefined, background: isToday ? "rgba(0,212,170,0.04)" : undefined }}>
+          {isToday && (
+            <div style={{ fontSize: 10, color: "#00D4AA", fontWeight: 800, textTransform: "uppercase", letterSpacing: 2, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ width: 6, height: 6, borderRadius: 3, background: "#00D4AA", animation: "pulse 1.5s infinite" }} /> Hoy
+            </div>
+          )}
+
+          {!editing ? (
+            <>
+              {/* Day header */}
+              <div style={{ fontSize: 11, color: "#00D4AA", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
+                {dayLabel} {viewDay.date?.slice(5)} — Día {dayIdx + 1}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#E8ECF4", marginBottom: 18, fontFamily: "'Playfair Display', serif" }}>{viewDay.title}</div>
+
+              {/* Activities */}
+              {viewDay.activities && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, color: "#8892A4", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Actividades</div>
+                  {renderActivities(viewDay.activities)}
+                </div>
+              )}
+
+              {/* Notes */}
+              {viewDay.notes && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, color: "#8892A4", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Notas</div>
+                  <div style={{ fontSize: 14, color: "#C8CDD8", lineHeight: 1.5, fontStyle: "italic" }}>{viewDay.notes}</div>
+                </div>
+              )}
+
+              {/* Day navigation */}
+              <div style={{ display: "flex", gap: 8, marginTop: 16, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                {prevDay ? (
+                  <button onClick={() => openDetail(prevDay)} style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, padding: "10px 12px", background: "rgba(255,255,255,0.04)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)", cursor: "pointer", color: "#8892A4", fontSize: 12 }}>
+                    <span>←</span>
+                    <div style={{ textAlign: "left", minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 10, color: "#6B7280", textTransform: "uppercase" }}>Día {dayIdx}</div>
+                      <div style={{ fontSize: 12, color: "#C8CDD8", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{prevDay.title}</div>
+                    </div>
+                  </button>
+                ) : <div style={{ flex: 1 }} />}
+                {nextDay ? (
+                  <button onClick={() => openDetail(nextDay)} style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, padding: "10px 12px", background: "rgba(255,255,255,0.04)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)", cursor: "pointer", color: "#8892A4", fontSize: 12 }}>
+                    <div style={{ textAlign: "right", minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 10, color: "#6B7280", textTransform: "uppercase" }}>Día {dayIdx + 2}</div>
+                      <div style={{ fontSize: 12, color: "#C8CDD8", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nextDay.title}</div>
+                    </div>
+                    <span>→</span>
+                  </button>
+                ) : <div style={{ flex: 1 }} />}
+              </div>
+
+              {/* Action buttons */}
+              <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                <Btn onClick={startEdit} variant="secondary" small style={{ flex: 1 }}>✏️ Editar</Btn>
+                {!confirmDelete ? (
+                  <Btn onClick={() => setConfirmDelete(true)} variant="danger" small style={{ flex: 1 }}>🗑 Borrar</Btn>
+                ) : (
+                  <Btn onClick={() => remove(viewDay.id)} variant="danger" small style={{ flex: 1, background: "rgba(255,107,107,0.3)" }}>¿Seguro? Confirmar</Btn>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Edit form */}
+              <div style={{ fontSize: 11, color: "#00D4AA", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>Editar día</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <Input label="Fecha" value={editForm.date} onChange={(v) => setEditForm({ ...editForm, date: v })} type="date" />
+                <Input label="Título" value={editForm.title} onChange={(v) => setEditForm({ ...editForm, title: v })} />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: "block", fontSize: 11, color: "#8892A4", marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Actividades (una por línea)</label>
+                <textarea value={editForm.activities} onChange={(e) => setEditForm({ ...editForm, activities: e.target.value })} rows={6}
+                  style={{ width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#E8ECF4", fontSize: 13, outline: "none", resize: "vertical", boxSizing: "border-box", lineHeight: 1.6 }} />
+              </div>
+              <Input label="Notas" value={editForm.notes} onChange={(v) => setEditForm({ ...editForm, notes: v })} />
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn onClick={saveEdit} small style={{ flex: 1 }}>✓ Guardar</Btn>
+                <Btn onClick={() => setEditing(false)} variant="secondary" small>Cancelar</Btn>
+              </div>
+            </>
+          )}
+        </Card>
+      </div>
+    );
+  }
+
+  // ===== LIST VIEW =====
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div style={{ fontSize: 18, fontWeight: 800, color: "#E8ECF4", fontFamily: "'Playfair Display', serif" }}>📋 Itinerario</div>
         <Btn onClick={() => setAdding(!adding)} small>{adding ? "✕ Cerrar" : "+ Agregar día"}</Btn>
       </div>
+
       {adding && (
         <Card style={{ marginBottom: 16, borderColor: "rgba(0,212,170,0.2)" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -1061,82 +1223,40 @@ function ItinerarySection({ data, updateData }) {
           <Btn onClick={add} style={{ width: "100%" }}>Guardar Día</Btn>
         </Card>
       )}
-      {(data.itinerary || []).length === 0 && !adding && (
+
+      {itinerary.length === 0 && !adding && (
         <Card style={{ textAlign: "center", padding: 40 }}>
           <div style={{ fontSize: 40, marginBottom: 10 }}>🗓️</div>
           <div style={{ fontSize: 14, color: "#8892A4" }}>Planificá tu itinerario día por día</div>
         </Card>
       )}
-      {(data.itinerary || []).map((day, idx) => {
-        const isEditing = editing === day.id;
+
+      {itinerary.map((day, idx) => {
         const d = day.date ? new Date(day.date + "T12:00:00") : null;
         const dayLabel = d ? dayNames[d.getDay()] : "";
-        const today = new Date().toISOString().split("T")[0];
         const isToday = day.date === today;
+        const activityCount = day.activities ? day.activities.split("\n").filter(Boolean).length : 0;
 
         return (
-          <Card key={day.id} style={{ marginBottom: 12, borderColor: isToday ? "rgba(0,212,170,0.4)" : undefined, background: isToday ? "rgba(0,212,170,0.06)" : undefined, boxShadow: isToday ? "0 0 20px rgba(0,212,170,0.1)" : undefined }}>
-            {isToday && <div style={{ fontSize: 10, color: "#00D4AA", fontWeight: 800, textTransform: "uppercase", letterSpacing: 2, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 6, height: 6, borderRadius: 3, background: "#00D4AA", animation: "pulse 1.5s infinite" }} /> Hoy</div>}
-            {/* Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-              <div>
-                <div style={{ fontSize: 11, color: "#00D4AA", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
-                  {dayLabel} {day.date?.slice(5)} — Día {idx + 1}
-                </div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#E8ECF4", marginTop: 4 }}>{day.title}</div>
+          <Card key={day.id} onClick={() => openDetail(day)} style={{ marginBottom: 10, padding: 14, cursor: "pointer", borderColor: isToday ? "rgba(0,212,170,0.4)" : undefined, background: isToday ? "rgba(0,212,170,0.06)" : undefined }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {/* Day number circle */}
+              <div style={{ width: 42, height: 42, borderRadius: 12, background: isToday ? "rgba(0,212,170,0.15)" : "rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <div style={{ fontSize: 9, color: isToday ? "#00D4AA" : "#6B7280", fontWeight: 700, textTransform: "uppercase", lineHeight: 1 }}>{dayLabel}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: isToday ? "#00D4AA" : "#E8ECF4", lineHeight: 1.2 }}>{d ? d.getDate() : "?"}</div>
               </div>
-              {!isEditing && (
-                <button onClick={() => setEditing(day.id)} style={{ background: "none", border: "none", color: "#8892A4", fontSize: 12, cursor: "pointer", padding: "2px 6px" }}>✏️</button>
-              )}
-              {isEditing && (
-                <button onClick={() => setEditing(null)} style={{ background: "none", border: "none", color: "#00D4AA", fontSize: 11, cursor: "pointer", padding: "2px 6px", fontWeight: 600 }}>▲ Cerrar</button>
-              )}
+              {/* Content */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  {isToday && <span style={{ width: 6, height: 6, borderRadius: 3, background: "#00D4AA", animation: "pulse 1.5s infinite", flexShrink: 0 }} />}
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#E8ECF4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{day.title}</div>
+                </div>
+                <div style={{ fontSize: 11, color: "#8892A4", marginTop: 3 }}>
+                  Día {idx + 1}{activityCount > 0 ? ` · ${activityCount} actividad${activityCount > 1 ? "es" : ""}` : ""}
+                </div>
+              </div>
+              <span style={{ color: "#4B5563", fontSize: 14, flexShrink: 0 }}>›</span>
             </div>
-
-            {/* Normal view - always visible */}
-            {day.activities && (
-              <div style={{ marginTop: 4 }}>
-                {day.activities.split("\n").filter(Boolean).map((act, i) => {
-                  const urlMatch = act.match(/(https?:\/\/[^\s]+)/);
-                  if (urlMatch) {
-                    const parts = act.split(urlMatch[0]);
-                    return (
-                      <div key={i} style={{ fontSize: 13, color: "#C8CDD8", padding: "4px 0", display: "flex", gap: 8 }}>
-                        <span style={{ color: "#00D4AA", flexShrink: 0 }}>›</span>
-                        <span>{parts[0]}<a href={urlMatch[0]} target="_blank" rel="noopener noreferrer" style={{ color: "#00B4D8", textDecoration: "none", fontWeight: 600 }}>{urlMatch[0].replace(/https?:\/\/(www\.)?/, '').split('/')[0]}</a>{parts[1]}</span>
-                      </div>
-                    );
-                  }
-                  return (
-                    <div key={i} style={{ fontSize: 13, color: "#C8CDD8", padding: "4px 0", display: "flex", gap: 8 }}>
-                      <span style={{ color: "#00D4AA", flexShrink: 0 }}>›</span>{act}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            {day.notes && <div style={{ fontSize: 12, color: "#8892A4", marginTop: 8, fontStyle: "italic" }}>{day.notes}</div>}
-
-            {/* Edit mode - shown below the normal view */}
-            {isEditing && (
-              <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.08)", animation: "fadeIn 0.2s ease" }}>
-                <div style={{ fontSize: 11, color: "#00D4AA", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Editar día</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <Input label="Fecha" value={day.date} onChange={(v) => updateDay(day.id, "date", v)} type="date" />
-                  <Input label="Título" value={day.title} onChange={(v) => updateDay(day.id, "title", v)} />
-                </div>
-                <div style={{ marginBottom: 14 }}>
-                  <label style={{ display: "block", fontSize: 11, color: "#8892A4", marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Actividades (una por línea)</label>
-                  <textarea value={day.activities} onChange={(e) => updateDay(day.id, "activities", e.target.value)} rows={5}
-                    style={{ width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#E8ECF4", fontSize: 13, outline: "none", resize: "vertical", boxSizing: "border-box", lineHeight: 1.6 }} />
-                </div>
-                <Input label="Notas" value={day.notes} onChange={(v) => updateDay(day.id, "notes", v)} />
-                <div style={{ display: "flex", gap: 8 }}>
-                  <Btn onClick={() => setEditing(null)} small style={{ flex: 1 }}>✓ Listo</Btn>
-                  <Btn onClick={() => remove(day.id)} variant="danger" small>🗑</Btn>
-                </div>
-              </div>
-            )}
           </Card>
         );
       })}
