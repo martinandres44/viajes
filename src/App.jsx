@@ -1235,28 +1235,45 @@ function ItinerarySection({ data, updateData }) {
         const d = day.date ? new Date(day.date + "T12:00:00") : null;
         const dayLabel = d ? dayNames[d.getDay()] : "";
         const isToday = day.date === today;
-        const activityCount = day.activities ? day.activities.split("\n").filter(Boolean).length : 0;
 
         return (
           <Card key={day.id} onClick={() => openDetail(day)} style={{ marginBottom: 10, padding: 14, cursor: "pointer", borderColor: isToday ? "rgba(0,212,170,0.4)" : undefined, background: isToday ? "rgba(0,212,170,0.06)" : undefined }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              {/* Day number circle */}
+            {isToday && <div style={{ fontSize: 10, color: "#00D4AA", fontWeight: 800, textTransform: "uppercase", letterSpacing: 2, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 6, height: 6, borderRadius: 3, background: "#00D4AA", animation: "pulse 1.5s infinite" }} /> Hoy</div>}
+            {/* Header with date box */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: day.activities ? 10 : 0 }}>
               <div style={{ width: 42, height: 42, borderRadius: 12, background: isToday ? "rgba(0,212,170,0.15)" : "rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <div style={{ fontSize: 9, color: isToday ? "#00D4AA" : "#6B7280", fontWeight: 700, textTransform: "uppercase", lineHeight: 1 }}>{dayLabel}</div>
                 <div style={{ fontSize: 16, fontWeight: 800, color: isToday ? "#00D4AA" : "#E8ECF4", lineHeight: 1.2 }}>{d ? d.getDate() : "?"}</div>
               </div>
-              {/* Content */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  {isToday && <span style={{ width: 6, height: 6, borderRadius: 3, background: "#00D4AA", animation: "pulse 1.5s infinite", flexShrink: 0 }} />}
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#E8ECF4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{day.title}</div>
-                </div>
-                <div style={{ fontSize: 11, color: "#8892A4", marginTop: 3 }}>
-                  Día {idx + 1}{activityCount > 0 ? ` · ${activityCount} actividad${activityCount > 1 ? "es" : ""}` : ""}
-                </div>
+                <div style={{ fontSize: 11, color: "#00D4AA", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Día {idx + 1}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#E8ECF4", marginTop: 2 }}>{day.title}</div>
               </div>
               <span style={{ color: "#4B5563", fontSize: 14, flexShrink: 0 }}>›</span>
             </div>
+            {/* Activities */}
+            {day.activities && (
+              <div>
+                {day.activities.split("\n").filter(Boolean).map((act, i) => {
+                  const urlMatch = act.match(/(https?:\/\/[^\s]+)/);
+                  if (urlMatch) {
+                    const parts = act.split(urlMatch[0]);
+                    return (
+                      <div key={i} style={{ fontSize: 13, color: "#C8CDD8", padding: "3px 0", display: "flex", gap: 8 }}>
+                        <span style={{ color: "#00D4AA", flexShrink: 0 }}>›</span>
+                        <span>{parts[0]}<span style={{ color: "#00B4D8", fontWeight: 600 }}>{urlMatch[0].replace(/https?:\/\/(www\.)?/, '').split('/')[0]}</span>{parts[1]}</span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={i} style={{ fontSize: 13, color: "#C8CDD8", padding: "3px 0", display: "flex", gap: 8 }}>
+                      <span style={{ color: "#00D4AA", flexShrink: 0 }}>›</span>{act}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {day.notes && <div style={{ fontSize: 12, color: "#8892A4", marginTop: 6, fontStyle: "italic" }}>{day.notes}</div>}
           </Card>
         );
       })}
