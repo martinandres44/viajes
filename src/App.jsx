@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { onTripData, saveTripData } from "./firebase";
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { useState, useEffect, useRef, useCallback } from “react”;
+import { onTripData, saveTripData } from “./firebase”;
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from “firebase/storage”;
 
 // ========== CONSTANTS ==========
 
-// Google Sheets integration - Reemplazá con tu URL de Apps Script (ver README)
 const SHEETS_URL = “https://script.google.com/macros/s/AKfycbzFtyCPdPbHqAvymF1HnJdCkHA_wHvBCYdgOVFlYVGoOt3hV5YeBS1Ewmm2ZtwRL-U/exec”;
 
 const WEATHER_LAT = 26.0112;
@@ -35,13 +34,11 @@ const WMO_CODES = {
 const getWeatherInfo = (code) => WMO_CODES[code] || { label: “Desconocido”, icon: “🌡️” };
 const celsiusToF = (c) => Math.round(c * 9 / 5 + 32);
 
-// Miami timezone helper — all dates/countdown based on Miami time
 const getMiamiNow = () => new Date(new Date().toLocaleString(“en-US”, { timeZone: “America/New_York” }));
 const getMiamiToday = () => {
 const m = getMiamiNow();
 return `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}-${String(m.getDate()).padStart(2, "0")}`;
 };
-const getMiamiDate = () => getMiamiNow();
 
 const CATEGORIES = [
 { id: “food”, label: “Comida”, icon: “🍽️”, color: “#FF6B6B” },
@@ -122,136 +119,49 @@ let match;
 while ((match = urlRegex.exec(text)) !== null) {
 urls.push(match[1]);
 }
-const cleanText = text.replace(urlRegex, ‘’).replace(/📍\s*/g, ‘’).trim();
+const cleanText = text.replace(urlRegex, “”).replace(/📍\s*/g, “”).trim();
 return { urls, cleanText };
 };
 
-const isGoogleMapsUrl = (url) => {
-return url.includes(‘maps.app.goo.gl’) || url.includes(‘google.com/maps’) || url.includes(‘goo.gl/maps’);
-};
+const isGoogleMapsUrl = (url) =>
+url.includes(“maps.app.goo.gl”) || url.includes(“google.com/maps”) || url.includes(“goo.gl/maps”);
 
 // ========== MAP PREVIEW COMPONENT ==========
 
 function MapPreview({ url, address, lat, lon }) {
-// Use OpenStreetMap static tile for preview
 const mapLat = lat || 26.0112;
 const mapLon = lon || -80.1495;
 const zoom = 15;
 
-// OpenStreetMap embed URL
 const osmEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${mapLon - 0.008},${mapLat - 0.005},${mapLon + 0.008},${mapLat + 0.005}&layer=mapnik&marker=${mapLat},${mapLon}`;
 
-// Static image fallback using OSM tile server
-const tileX = Math.floor((mapLon + 180) / 360 * Math.pow(2, zoom));
-const tileY = Math.floor((1 - Math.log(Math.tan(mapLat * Math.PI / 180) + 1 / Math.cos(mapLat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom));
+const tileX = Math.floor(((mapLon + 180) / 360) * Math.pow(2, zoom));
+const tileY = Math.floor(
+((1 - Math.log(Math.tan((mapLat * Math.PI) / 180) + 1 / Math.cos((mapLat * Math.PI) / 180)) / Math.PI) / 2) *
+Math.pow(2, zoom)
+);
 const tileUrl = `https://tile.openstreetmap.org/${zoom}/${tileX}/${tileY}.png`;
 
 return (
-<a
-href={url}
-target=”_blank”
-rel=“noopener noreferrer”
-style={{ display: “block”, textDecoration: “none”, marginTop: 12 }}
+<a href={url} target=”_blank” rel=“noopener noreferrer” style={{ display: “block”, textDecoration: “none”, marginTop: 12 }}>
+<div
+style={{ borderRadius: 14, overflow: “hidden”, border: “1px solid rgba(0,212,170,0.2)”, background: “rgba(0,212,170,0.04)”, transition: “all 0.25s ease”, cursor: “pointer” }}
+onMouseEnter={(e) => { e.currentTarget.style.borderColor = “rgba(0,212,170,0.4)”; e.currentTarget.style.transform = “translateY(-1px)”; e.currentTarget.style.boxShadow = “0 4px 20px rgba(0,212,170,0.12)”; }}
+onMouseLeave={(e) => { e.currentTarget.style.borderColor = “rgba(0,212,170,0.2)”; e.currentTarget.style.transform = “translateY(0)”; e.currentTarget.style.boxShadow = “none”; }}
 >
-<div style={{
-borderRadius: 14,
-overflow: “hidden”,
-border: “1px solid rgba(0,212,170,0.2)”,
-background: “rgba(0,212,170,0.04)”,
-transition: “all 0.25s ease”,
-cursor: “pointer”,
-}}
-onMouseEnter={(e) => {
-e.currentTarget.style.borderColor = “rgba(0,212,170,0.4)”;
-e.currentTarget.style.transform = “translateY(-1px)”;
-e.currentTarget.style.boxShadow = “0 4px 20px rgba(0,212,170,0.12)”;
-}}
-onMouseLeave={(e) => {
-e.currentTarget.style.borderColor = “rgba(0,212,170,0.2)”;
-e.currentTarget.style.transform = “translateY(0)”;
-e.currentTarget.style.boxShadow = “none”;
-}}
->
-{/* Map image area */}
-<div style={{
-position: “relative”,
-height: 160,
-background: `url(${tileUrl}) center/cover no-repeat`,
-backgroundColor: “rgba(0,30,40,0.5)”,
-}}>
-{/* OSM iframe overlay for better map rendering */}
-<iframe
-src={osmEmbedUrl}
-style={{
-width: “100%”,
-height: “100%”,
-border: “none”,
-pointerEvents: “none”,
-position: “absolute”,
-top: 0,
-left: 0,
-}}
-title=“Mapa ubicación”
-loading=“lazy”
-/>
-{/* Gradient overlay at bottom */}
-<div style={{
-position: “absolute”,
-bottom: 0,
-left: 0,
-right: 0,
-height: 50,
-background: “linear-gradient(transparent, rgba(10,14,26,0.9))”,
-}} />
-{/* Pin icon overlay */}
-<div style={{
-position: “absolute”,
-top: 10,
-right: 10,
-background: “rgba(0,212,170,0.9)”,
-borderRadius: 8,
-padding: “4px 8px”,
-fontSize: 11,
-fontWeight: 700,
-color: “#0A0E1A”,
-display: “flex”,
-alignItems: “center”,
-gap: 4,
-boxShadow: “0 2px 8px rgba(0,0,0,0.3)”,
-}}>
+<div style={{ position: “relative”, height: 160, background: `url(${tileUrl}) center/cover no-repeat`, backgroundColor: “rgba(0,30,40,0.5)” }}>
+<iframe src={osmEmbedUrl} style={{ width: “100%”, height: “100%”, border: “none”, pointerEvents: “none”, position: “absolute”, top: 0, left: 0 }} title=“Mapa ubicacion” loading=“lazy” />
+<div style={{ position: “absolute”, bottom: 0, left: 0, right: 0, height: 50, background: “linear-gradient(transparent, rgba(10,14,26,0.9))” }} />
+<div style={{ position: “absolute”, top: 10, right: 10, background: “rgba(0,212,170,0.9)”, borderRadius: 8, padding: “4px 8px”, fontSize: 11, fontWeight: 700, color: “#0A0E1A”, display: “flex”, alignItems: “center”, gap: 4, boxShadow: “0 2px 8px rgba(0,0,0,0.3)” }}>
 📍 Maps
 </div>
 </div>
-{/* Bottom bar */}
-<div style={{
-padding: “10px 14px”,
-display: “flex”,
-alignItems: “center”,
-justifyContent: “space-between”,
-background: “rgba(0,212,170,0.06)”,
-}}>
+<div style={{ padding: “10px 14px”, display: “flex”, alignItems: “center”, justifyContent: “space-between”, background: “rgba(0,212,170,0.06)” }}>
 <div style={{ flex: 1, minWidth: 0 }}>
-<div style={{ fontSize: 13, fontWeight: 600, color: “#E8ECF4”, overflow: “hidden”, textOverflow: “ellipsis”, whiteSpace: “nowrap” }}>
-{address || “Ver ubicación”}
+<div style={{ fontSize: 13, fontWeight: 600, color: “#E8ECF4”, overflow: “hidden”, textOverflow: “ellipsis”, whiteSpace: “nowrap” }}>{address || “Ver ubicacion”}</div>
+<div style={{ fontSize: 11, color: “#00D4AA”, marginTop: 2 }}>Abrir en Google Maps ↗</div>
 </div>
-<div style={{ fontSize: 11, color: “#00D4AA”, marginTop: 2 }}>
-Abrir en Google Maps ↗
-</div>
-</div>
-<div style={{
-width: 32,
-height: 32,
-borderRadius: 8,
-background: “rgba(0,212,170,0.15)”,
-display: “flex”,
-alignItems: “center”,
-justifyContent: “center”,
-fontSize: 16,
-flexShrink: 0,
-marginLeft: 10,
-}}>
-🗺️
-</div>
+<div style={{ width: 32, height: 32, borderRadius: 8, background: “rgba(0,212,170,0.15)”, display: “flex”, alignItems: “center”, justifyContent: “center”, fontSize: 16, flexShrink: 0, marginLeft: 10 }}>🗺️</div>
 </div>
 </div>
 </a>
@@ -263,29 +173,10 @@ marginLeft: 10,
 function ClickableLink({ url, label }) {
 return (
 <a
-href={url}
-target=”_blank”
-rel=“noopener noreferrer”
-style={{
-display: “inline-flex”,
-alignItems: “center”,
-gap: 6,
-padding: “6px 12px”,
-background: “rgba(0,180,216,0.08)”,
-borderRadius: 10,
-textDecoration: “none”,
-border: “1px solid rgba(0,180,216,0.15)”,
-marginTop: 6,
-transition: “all 0.2s”,
-}}
-onMouseEnter={(e) => {
-e.currentTarget.style.background = “rgba(0,180,216,0.15)”;
-e.currentTarget.style.borderColor = “rgba(0,180,216,0.3)”;
-}}
-onMouseLeave={(e) => {
-e.currentTarget.style.background = “rgba(0,180,216,0.08)”;
-e.currentTarget.style.borderColor = “rgba(0,180,216,0.15)”;
-}}
+href={url} target=”_blank” rel=“noopener noreferrer”
+style={{ display: “inline-flex”, alignItems: “center”, gap: 6, padding: “6px 12px”, background: “rgba(0,180,216,0.08)”, borderRadius: 10, textDecoration: “none”, border: “1px solid rgba(0,180,216,0.15)”, marginTop: 6, transition: “all 0.2s” }}
+onMouseEnter={(e) => { e.currentTarget.style.background = “rgba(0,180,216,0.15)”; e.currentTarget.style.borderColor = “rgba(0,180,216,0.3)”; }}
+onMouseLeave={(e) => { e.currentTarget.style.background = “rgba(0,180,216,0.08)”; e.currentTarget.style.borderColor = “rgba(0,180,216,0.15)”; }}
 >
 <span style={{ fontSize: 12, color: “#00B4D8”, fontWeight: 600 }}>{label || “Abrir link”} ↗</span>
 </a>
@@ -326,7 +217,11 @@ return (
 };
 
 const StatusBadge = ({ status }) => {
-const colors = { confirmado: { bg: “rgba(0,212,170,0.15)”, text: “#00D4AA” }, pendiente: { bg: “rgba(255,230,109,0.15)”, text: “#FFE66D” }, cancelado: { bg: “rgba(255,107,107,0.15)”, text: “#FF6B6B” } };
+const colors = {
+confirmado: { bg: “rgba(0,212,170,0.15)”, text: “#00D4AA” },
+pendiente: { bg: “rgba(255,230,109,0.15)”, text: “#FFE66D” },
+cancelado: { bg: “rgba(255,107,107,0.15)”, text: “#FF6B6B” },
+};
 const c = colors[status] || colors.pendiente;
 return <span style={{ padding: “3px 10px”, borderRadius: 20, fontSize: 11, fontWeight: 700, background: c.bg, color: c.text, textTransform: “uppercase”, letterSpacing: 0.8 }}>{status}</span>;
 };
@@ -356,12 +251,12 @@ const [useFahrenheit, setUseFahrenheit] = useState(false);
 
 useEffect(() => {
 fetch(WEATHER_URL)
-.then(r => r.json())
-.then(data => { setWeather(data); setLoading(false); })
+.then((r) => r.json())
+.then((data) => { setWeather(data); setLoading(false); })
 .catch(() => setLoading(false));
 }, []);
 
-const dayNames = [“Dom”, “Lun”, “Mar”, “Mié”, “Jue”, “Vie”, “Sáb”];
+const dayNames = [“Dom”, “Lun”, “Mar”, “Mie”, “Jue”, “Vie”, “Sab”];
 
 if (loading) return (
 <Card style={{ marginBottom: 16 }}>
@@ -383,14 +278,16 @@ if (!weather?.current) return (
 
 const { current, daily } = weather;
 const currentInfo = getWeatherInfo(current.weathercode);
-const tempDisplay = (c) => useFahrenheit ? `${celsiusToF(c)}°F` : `${Math.round(c)}°C`;
+const tempDisplay = (c) => useFahrenheit ? `${celsiusToF(c)}F` : `${Math.round(c)}C`;
 
 return (
 <div style={{ marginBottom: 16 }}>
 <Card style={{ marginBottom: 10, background: “linear-gradient(135deg, rgba(0,180,216,0.12) 0%, rgba(0,212,170,0.06) 100%)”, borderColor: “rgba(0,180,216,0.15)” }}>
 <div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “flex-start”, marginBottom: 12 }}>
 <div style={{ fontSize: 11, color: “#00B4D8”, fontWeight: 700, textTransform: “uppercase”, letterSpacing: 1.2 }}>🌊 Hollywood Beach ahora</div>
-<button onClick={() => setUseFahrenheit(!useFahrenheit)} style={{ background: “rgba(255,255,255,0.08)”, border: “none”, borderRadius: 6, padding: “3px 8px”, color: “#8892A4”, fontSize: 11, cursor: “pointer”, fontWeight: 600 }}>°{useFahrenheit ? “C” : “F”}</button>
+<button onClick={() => setUseFahrenheit(!useFahrenheit)} style={{ background: “rgba(255,255,255,0.08)”, border: “none”, borderRadius: 6, padding: “3px 8px”, color: “#8892A4”, fontSize: 11, cursor: “pointer”, fontWeight: 600 }}>
+{useFahrenheit ? “C” : “F”}
+</button>
 </div>
 <div style={{ display: “flex”, alignItems: “center”, gap: 16 }}>
 <div style={{ fontSize: 48, lineHeight: 1 }}>{currentInfo.icon}</div>
@@ -435,14 +332,18 @@ const byCategory = {};
 const topCategory = Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0];
 const daysUntil = Math.max(0, Math.ceil((new Date(data.hotel?.checkIn || “2026-03-15”) - getMiamiNow()) / (1000 * 60 * 60 * 24)));
 const confirmedFlights = (data.flights || []).filter((f) => f.status === “confirmado”).length;
-const pendingItems = [!data.hotel?.confirmation && “Hotel”, !data.car?.confirmation && “Auto”, …(data.flights || []).filter((f) => !f.confirmation).map((f) => `Vuelo ${f.type}`)].filter(Boolean);
+const pendingItems = [
+!data.hotel?.confirmation && “Hotel”,
+!data.car?.confirmation && “Auto”,
+…(data.flights || []).filter((f) => !f.confirmation).map((f) => `Vuelo ${f.type}`),
+].filter(Boolean);
 
 return (
 <div>
 <div style={{ textAlign: “center”, padding: “30px 20px 20px”, background: “linear-gradient(180deg, rgba(0,212,170,0.08) 0%, transparent 100%)”, borderRadius: 20, marginBottom: 20 }}>
 <div style={{ fontSize: 13, color: “#8892A4”, letterSpacing: 2, textTransform: “uppercase”, marginBottom: 8 }}>Miami 2026</div>
-<div style={{ fontSize: 64, fontWeight: 800, background: “linear-gradient(135deg, #00D4AA, #00B4D8, #A78BFA)”, WebkitBackgroundClip: “text”, WebkitTextFillColor: “transparent”, lineHeight: 1, fontFamily: “‘Playfair Display’, serif” }}>{daysUntil}</div>
-<div style={{ fontSize: 14, color: “#8892A4”, marginTop: 4 }}>días para el viaje</div>
+<div style={{ fontSize: 64, fontWeight: 800, background: “linear-gradient(135deg, #00D4AA, #00B4D8, #A78BFA)”, WebkitBackgroundClip: “text”, WebkitTextFillColor: “transparent”, lineHeight: 1 }}>{daysUntil}</div>
+<div style={{ fontSize: 14, color: “#8892A4”, marginTop: 4 }}>dias para el viaje</div>
 </div>
 
 ```
@@ -466,7 +367,7 @@ return (
       {pendingItems.map((item, i) => (
         <div key={i} style={{ fontSize: 13, color: "#C8CDD8", padding: "4px 0", display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ width: 6, height: 6, borderRadius: 3, background: "#FFE66D", flexShrink: 0 }} />
-          Falta confirmación: {item}
+          Falta confirmacion: {item}
         </div>
       ))}
     </Card>
@@ -485,20 +386,19 @@ return (
     </Card>
   )}
 
-  {/* Daily expense chart */}
   {(data.expenses || []).length > 0 && (() => {
     const byDay = {};
     (data.expenses || []).forEach((e) => { byDay[e.date] = (byDay[e.date] || 0) + (e.amount || 0); });
     const days = Object.entries(byDay).sort((a, b) => a[0].localeCompare(b[0]));
-    const maxAmt = Math.max(...days.map(d => d[1]));
-    const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    const maxAmt = Math.max(...days.map((d) => d[1]));
+    const dn = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
     return (
       <Card style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 11, color: "#8892A4", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>Gastos por día</div>
+        <div style={{ fontSize: 11, color: "#8892A4", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>Gastos por dia</div>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 80 }}>
           {days.map(([date, amt]) => {
             const d = new Date(date + "T12:00:00");
-            const label = dayNames[d.getDay()] + " " + d.getDate();
+            const label = dn[d.getDay()] + " " + d.getDate();
             const pct = maxAmt > 0 ? (amt / maxAmt) * 100 : 0;
             return (
               <div key={date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
@@ -512,7 +412,6 @@ return (
       </Card>
     );
   })()}
-
 </div>
 ```
 
@@ -539,23 +438,23 @@ const AIRLINE_IATA = {
 
 const getFlightLink = (flight) => {
 if (!flight.flightNumber) return null;
-const num = (flight.flightNumber || ‘’).replace(/\s/g, ‘’);
-const airlineKey = (flight.airline || ‘’).toLowerCase().trim();
-const iata = AIRLINE_IATA[airlineKey] || flight.airline?.replace(/\s/g, ‘’) || ‘’;
+const num = (flight.flightNumber || “”).replace(/\s/g, “”);
+const airlineKey = (flight.airline || “”).toLowerCase().trim();
+const iata = AIRLINE_IATA[airlineKey] || flight.airline?.replace(/\s/g, “”) || “”;
 const code = iata + num;
 return `https://www.google.com/search?q=${encodeURIComponent(code)}`;
 };
 
 return (
 <div>
-<div style={{ fontSize: 18, fontWeight: 800, color: “#E8ECF4”, marginBottom: 16, fontFamily: “‘Playfair Display’, serif” }}>✈️ Vuelos</div>
+<div style={{ fontSize: 18, fontWeight: 800, color: “#E8ECF4”, marginBottom: 16 }}>✈️ Vuelos</div>
 {(data.flights || []).map((flight) => {
 const flightLink = getFlightLink(flight);
 return (
 <Card key={flight.id} style={{ marginBottom: 14 }}>
 <div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 14 }}>
 <div style={{ fontSize: 14, fontWeight: 700, color: “#E8ECF4”, textTransform: “uppercase” }}>
-{flight.type === “ida” ? “🛫 Ida” : “🛬 Vuelta”} — {flight.from} → {flight.to}
+{flight.type === “ida” ? “🛫 Ida” : “🛬 Vuelta”} - {flight.from} → {flight.to}
 </div>
 <select value={flight.status} onChange={(e) => update(flight.id, “status”, e.target.value)}
 style={{ background: “rgba(255,255,255,0.06)”, border: “1px solid rgba(255,255,255,0.1)”, borderRadius: 8, color: “#E8ECF4”, padding: “4px 8px”, fontSize: 12 }}>
@@ -565,12 +464,12 @@ style={{ background: “rgba(255,255,255,0.06)”, border: “1px solid rgba(255
 </select>
 </div>
 <div style={{ display: “grid”, gridTemplateColumns: “1fr 1fr”, gap: 10 }}>
-<Input label=“Aerolínea” value={flight.airline} onChange={(v) => update(flight.id, “airline”, v)} />
+<Input label=“Aerolinea” value={flight.airline} onChange={(v) => update(flight.id, “airline”, v)} />
 <Input label=“Nro Vuelo” value={flight.flightNumber} onChange={(v) => update(flight.id, “flightNumber”, v)} placeholder=“1234” />
 <Input label=“Fecha” value={flight.date} onChange={(v) => update(flight.id, “date”, v)} type=“date” />
 <Input label=“Hora” value={flight.time} onChange={(v) => update(flight.id, “time”, v)} type=“time” />
 </div>
-<Input label=“Código Confirmación” value={flight.confirmation} onChange={(v) => update(flight.id, “confirmation”, v)} placeholder=“ABC123” />
+<Input label=“Codigo Confirmacion” value={flight.confirmation} onChange={(v) => update(flight.id, “confirmation”, v)} placeholder=“ABC123” />
 <Input label=“Notas” value={flight.notes} onChange={(v) => update(flight.id, “notes”, v)} placeholder=“Terminal, gate, etc.” />
 {flightLink && (
 <a href={flightLink} target=”_blank” rel=“noopener noreferrer” style={{ display: “flex”, alignItems: “center”, justifyContent: “center”, gap: 8, padding: “12px”, background: “rgba(0,180,216,0.08)”, borderRadius: 10, textDecoration: “none”, border: “1px solid rgba(0,180,216,0.15)”, marginTop: 4 }}>
@@ -590,30 +489,28 @@ const h = data.hotel || {};
 const update = (field, val) => updateData({ …data, hotel: { …h, [field]: val } });
 const nights = h.checkIn && h.checkOut ? Math.max(0, Math.ceil((new Date(h.checkOut) - new Date(h.checkIn)) / 86400000)) : 0;
 
-// Extract Google Maps URL from notes
-const { urls: noteUrls, cleanText: cleanNotes } = extractUrls(h.notes);
+const { urls: noteUrls } = extractUrls(h.notes);
 const mapsUrl = noteUrls.find(isGoogleMapsUrl);
-const otherUrls = noteUrls.filter(u => !isGoogleMapsUrl(u));
+const otherUrls = noteUrls.filter((u) => !isGoogleMapsUrl(u));
 
-// Coordinates for The Tides, Hollywood FL
 const hotelLat = 26.0194;
 const hotelLon = -80.1170;
 
 return (
 <div>
-<div style={{ fontSize: 18, fontWeight: 800, color: “#E8ECF4”, marginBottom: 16, fontFamily: “‘Playfair Display’, serif” }}>🏠 Airbnb</div>
+<div style={{ fontSize: 18, fontWeight: 800, color: “#E8ECF4”, marginBottom: 16 }}>🏠 Airbnb</div>
 <Card>
 <div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 14 }}>
 <StatusBadge status={h.confirmation ? “confirmado” : “pendiente”} />
 {nights > 0 && <span style={{ fontSize: 13, color: “#8892A4” }}>{nights} noches</span>}
 </div>
 <Input label=“Nombre” value={h.name} onChange={(v) => update(“name”, v)} placeholder=“Nombre del Airbnb” />
-<Input label=“Dirección” value={h.address} onChange={(v) => update(“address”, v)} placeholder=“Dirección o link de Google Maps” />
+<Input label=“Direccion” value={h.address} onChange={(v) => update(“address”, v)} placeholder=“Direccion o link de Google Maps” />
 <div style={{ display: “grid”, gridTemplateColumns: “1fr 1fr”, gap: 10 }}>
 <Input label=“Check-in” value={h.checkIn} onChange={(v) => update(“checkIn”, v)} type=“date” />
 <Input label=“Check-out” value={h.checkOut} onChange={(v) => update(“checkOut”, v)} type=“date” />
 </div>
-<Input label=“Confirmación” value={h.confirmation} onChange={(v) => update(“confirmation”, v)} placeholder=“Código de reserva” />
+<Input label=“Confirmacion” value={h.confirmation} onChange={(v) => update(“confirmation”, v)} placeholder=“Codigo de reserva” />
 <div style={{ display: “grid”, gridTemplateColumns: “1fr 1fr”, gap: 10 }}>
 <Input label=“Costo Total (USD)” value={h.totalCost} onChange={(v) => update(“totalCost”, parseFloat(v) || 0)} type=“number” />
 <div style={{ display: “flex”, alignItems: “end”, paddingBottom: 14 }}>
@@ -624,30 +521,16 @@ return (
 </div>
 </div>
 <Input label=“Notas” value={h.notes} onChange={(v) => update(“notes”, v)} placeholder=“WiFi, parking, link de Maps, etc.” />
-
-```
-    {/* Google Maps Preview */}
-    {mapsUrl && (
-      <MapPreview
-        url={mapsUrl}
-        address={h.address || h.name}
-        lat={hotelLat}
-        lon={hotelLon}
-      />
-    )}
-
-    {/* Other non-Maps links rendered as buttons */}
-    {otherUrls.length > 0 && (
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-        {otherUrls.map((url, i) => (
-          <ClickableLink key={i} url={url} label={url.replace(/https?:\/\/(www\.)?/, '').split('/')[0]} />
-        ))}
-      </div>
-    )}
-  </Card>
+{mapsUrl && <MapPreview url={mapsUrl} address={h.address || h.name} lat={hotelLat} lon={hotelLon} />}
+{otherUrls.length > 0 && (
+<div style={{ display: “flex”, flexWrap: “wrap”, gap: 6, marginTop: 8 }}>
+{otherUrls.map((url, i) => (
+<ClickableLink key={i} url={url} label={url.replace(/https?://(www.)?/, “”).split(”/”)[0]} />
+))}
 </div>
-```
-
+)}
+</Card>
+</div>
 );
 }
 
@@ -655,20 +538,21 @@ function CarSection({ data, updateData }) {
 const c = data.car || {};
 const update = (field, val) => updateData({ …data, car: { …c, [field]: val } });
 const days = c.pickUp && c.dropOff ? Math.max(0, Math.ceil((new Date(c.dropOff) - new Date(c.pickUp)) / 86400000)) : 0;
+
 return (
 <div>
-<div style={{ fontSize: 18, fontWeight: 800, color: “#E8ECF4”, marginBottom: 16, fontFamily: “‘Playfair Display’, serif” }}>🚘 Auto Rental</div>
+<div style={{ fontSize: 18, fontWeight: 800, color: “#E8ECF4”, marginBottom: 16 }}>🚘 Auto Rental</div>
 <Card>
 <div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 14 }}>
 <StatusBadge status={c.confirmation ? “confirmado” : “pendiente”} />
-{days > 0 && <span style={{ fontSize: 13, color: “#8892A4” }}>{days} días</span>}
+{days > 0 && <span style={{ fontSize: 13, color: “#8892A4” }}>{days} dias</span>}
 </div>
-<Input label=“Compañía” value={c.company} onChange={(v) => update(“company”, v)} placeholder=“Hertz, Avis, etc.” />
+<Input label=“Compania” value={c.company} onChange={(v) => update(“company”, v)} placeholder=“Hertz, Avis, etc.” />
 <div style={{ display: “grid”, gridTemplateColumns: “1fr 1fr”, gap: 10 }}>
 <Input label=“Pick-up” value={c.pickUp} onChange={(v) => update(“pickUp”, v)} type=“date” />
 <Input label=“Drop-off” value={c.dropOff} onChange={(v) => update(“dropOff”, v)} type=“date” />
 </div>
-<Input label=“Confirmación” value={c.confirmation} onChange={(v) => update(“confirmation”, v)} placeholder=“Código de reserva” />
+<Input label=“Confirmacion” value={c.confirmation} onChange={(v) => update(“confirmation”, v)} placeholder=“Codigo de reserva” />
 <div style={{ display: “grid”, gridTemplateColumns: “1fr 1fr”, gap: 10 }}>
 <Input label=“Costo Total (USD)” value={c.totalCost} onChange={(v) => update(“totalCost”, parseFloat(v) || 0)} type=“number” />
 <div style={{ display: “flex”, alignItems: “end”, paddingBottom: 14 }}>
@@ -691,9 +575,9 @@ const [form, setForm] = useState({ description: “”, amount: “”, category
 const sendToSheets = async (expense) => {
 if (!SHEETS_URL || SHEETS_URL === “TU_APPS_SCRIPT_URL”) return;
 try {
-const cat = CATEGORIES.find(c => c.id === expense.category);
-const pm = PAYMENT_METHODS.find(p => p.id === expense.payment);
-const bank = BANKS.find(b => b.id === expense.bank);
+const cat = CATEGORIES.find((c) => c.id === expense.category);
+const pm = PAYMENT_METHODS.find((p) => p.id === expense.payment);
+const bank = BANKS.find((b) => b.id === expense.bank);
 await fetch(SHEETS_URL, {
 method: “POST”,
 mode: “no-cors”,
@@ -704,7 +588,7 @@ descripcion: expense.description,
 monto: expense.amount,
 categoria: cat?.label || expense.category,
 pago: pm?.label || expense.payment,
-banco: (expense.payment !== “cash” && bank) ? bank.label : “-”,
+banco: expense.payment !== “cash” && bank ? bank.label : “-”,
 notas: expense.notes || “”,
 }),
 });
@@ -732,8 +616,8 @@ const total = expenses.reduce((s, e) => s + e.amount, 0);
 return (
 <div>
 <div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 16 }}>
-<div style={{ fontSize: 18, fontWeight: 800, color: “#E8ECF4”, fontFamily: “‘Playfair Display’, serif” }}>💰 Gastos</div>
-<Btn onClick={() => setAdding(!adding)} small>{adding ? “✕ Cerrar” : “+ Agregar”}</Btn>
+<div style={{ fontSize: 18, fontWeight: 800, color: “#E8ECF4” }}>💰 Gastos</div>
+<Btn onClick={() => setAdding(!adding)} small>{adding ? “x Cerrar” : “+ Agregar”}</Btn>
 </div>
 
 ```
@@ -754,13 +638,13 @@ return (
 
   {adding && (
     <Card style={{ marginBottom: 16, borderColor: "rgba(0,212,170,0.2)" }}>
-      <Input label="Descripción" value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="¿En qué gastaste?" />
+      <Input label="Descripcion" value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="En que gastaste?" />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <Input label="Monto (USD)" value={form.amount} onChange={(v) => setForm({ ...form, amount: v })} type="number" placeholder="0.00" />
         <Input label="Fecha" value={form.date} onChange={(v) => setForm({ ...form, date: v })} type="date" />
       </div>
       <div style={{ marginBottom: 14 }}>
-        <label style={{ display: "block", fontSize: 11, color: "#8892A4", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Categoría</label>
+        <label style={{ display: "block", fontSize: 11, color: "#8892A4", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Categoria</label>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {CATEGORIES.map((cat) => (
             <button key={cat.id} onClick={() => setForm({ ...form, category: cat.id })} style={{ padding: "6px 12px", borderRadius: 20, border: form.category === cat.id ? `2px solid ${cat.color}` : "1px solid rgba(255,255,255,0.1)", background: form.category === cat.id ? `${cat.color}20` : "transparent", color: form.category === cat.id ? cat.color : "#8892A4", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
@@ -799,47 +683,36 @@ return (
   {expenses.length === 0 && !adding && (
     <Card style={{ textAlign: "center", padding: 40 }}>
       <div style={{ fontSize: 40, marginBottom: 10 }}>💸</div>
-      <div style={{ fontSize: 14, color: "#8892A4" }}>Sin gastos aún. ¡Empezá a trackear!</div>
+      <div style={{ fontSize: 14, color: "#8892A4" }}>Sin gastos aun. Empieza a trackear!</div>
     </Card>
   )}
 
-  {/* Expenses grouped by day */}
   {expenses.length > 0 && (() => {
     const byDay = {};
-    expenses.forEach(exp => {
-      if (!byDay[exp.date]) byDay[exp.date] = [];
-      byDay[exp.date].push(exp);
-    });
+    expenses.forEach((exp) => { if (!byDay[exp.date]) byDay[exp.date] = []; byDay[exp.date].push(exp); });
     const sortedDays = Object.entries(byDay).sort((a, b) => b[0].localeCompare(a[0]));
-    const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-
+    const dn = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
     return sortedDays.map(([date, dayExpenses]) => {
       const dayTotal = dayExpenses.reduce((s, e) => s + e.amount, 0);
       const d = new Date(date + "T12:00:00");
-      const label = dayNames[d.getDay()] + " " + d.getDate() + "/" + (d.getMonth() + 1);
-      const miamiToday = getMiamiToday();
-      const isToday = date === miamiToday;
-
+      const label = dn[d.getDay()] + " " + d.getDate() + "/" + (d.getMonth() + 1);
+      const isToday = date === getMiamiToday();
       return (
         <div key={date} style={{ marginBottom: 16 }}>
-          {/* Day header with subtotal */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, padding: "0 2px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {isToday && <span style={{ width: 6, height: 6, borderRadius: 3, background: "#00D4AA", animation: "pulse 1.5s infinite", flexShrink: 0 }} />}
-              <span style={{ fontSize: 12, color: isToday ? "#00D4AA" : "#8892A4", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
-                {isToday ? "Hoy" : label}
-              </span>
-              {isToday && <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 500 }}>({label})</span>}
+              <span style={{ fontSize: 12, color: isToday ? "#00D4AA" : "#8892A4", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>{isToday ? "Hoy" : label}</span>
+              {isToday && <span style={{ fontSize: 11, color: "#6B7280" }}>({label})</span>}
             </div>
             <span style={{ fontSize: 13, fontWeight: 700, color: "#E8ECF4" }}>${dayTotal.toLocaleString()}</span>
           </div>
-          {/* Day expenses */}
-          {dayExpenses.map(exp => {
+          {dayExpenses.map((exp) => {
             const cat = CATEGORIES.find((c) => c.id === exp.category);
             const pm = PAYMENT_METHODS.find((p) => p.id === exp.payment);
             const bank = BANKS.find((b) => b.id === exp.bank);
             const payLabel = pm?.label || exp.payment;
-            const bankLabel = (exp.payment !== "cash" && bank) ? ` · ${bank.label}` : "";
+            const bankLabel = exp.payment !== "cash" && bank ? ` - ${bank.label}` : "";
             return (
               <Card key={exp.id} style={{ marginBottom: 6, padding: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -879,14 +752,14 @@ const DOC_CATEGORIES = [
 
 function DocumentsSection({ data, updateData }) {
 const [adding, setAdding] = useState(false);
-const [viewing, setViewing] = useState(null); // doc id being viewed
-const [editing, setEditing] = useState(false); // editing mode within detail
+const [viewing, setViewing] = useState(null);
+const [editing, setEditing] = useState(false);
 const [editForm, setEditForm] = useState({ name: “”, url: “”, category: “boarding”, confirmation: “”, notes: “” });
 const [form, setForm] = useState({ name: “”, url: “”, category: “boarding”, confirmation: “”, notes: “” });
 const [confirmDelete, setConfirmDelete] = useState(false);
 
 const docs = data.documents || [];
-const viewDoc = docs.find(d => d.id === viewing);
+const viewDoc = docs.find((d) => d.id === viewing);
 
 const add = () => {
 if (!form.name) return;
@@ -894,198 +767,143 @@ updateData({ …data, documents: […docs, { …form, id: Date.now().toString() 
 setForm({ name: “”, url: “”, category: “boarding”, confirmation: “”, notes: “” });
 setAdding(false);
 };
-const remove = (id) => {
-updateData({ …data, documents: docs.filter(d => d.id !== id) });
-setViewing(null);
-setEditing(false);
-setConfirmDelete(false);
-};
-const openDetail = (doc) => {
-setViewing(doc.id);
-setEditing(false);
-setConfirmDelete(false);
-setAdding(false);
-};
-const startEdit = () => {
-if (!viewDoc) return;
-setEditForm({ name: viewDoc.name || “”, url: viewDoc.url || “”, category: viewDoc.category || “boarding”, confirmation: viewDoc.confirmation || “”, notes: viewDoc.notes || “” });
-setEditing(true);
-setConfirmDelete(false);
-};
-const saveEdit = () => {
-if (!viewing) return;
-const updated = docs.map(d => d.id === viewing ? { …d, …editForm } : d);
-updateData({ …data, documents: updated });
-setEditing(false);
-};
-const goBack = () => {
-setViewing(null);
-setEditing(false);
-setConfirmDelete(false);
-};
+const remove = (id) => { updateData({ …data, documents: docs.filter((d) => d.id !== id) }); setViewing(null); setEditing(false); setConfirmDelete(false); };
+const openDetail = (doc) => { setViewing(doc.id); setEditing(false); setConfirmDelete(false); setAdding(false); };
+const startEdit = () => { if (!viewDoc) return; setEditForm({ name: viewDoc.name || “”, url: viewDoc.url || “”, category: viewDoc.category || “boarding”, confirmation: viewDoc.confirmation || “”, notes: viewDoc.notes || “” }); setEditing(true); setConfirmDelete(false); };
+const saveEdit = () => { if (!viewing) return; const updated = docs.map((d) => d.id === viewing ? { …d, …editForm } : d); updateData({ …data, documents: updated }); setEditing(false); };
+const goBack = () => { setViewing(null); setEditing(false); setConfirmDelete(false); };
 
 const grouped = {};
-DOC_CATEGORIES.forEach(c => { grouped[c.id] = docs.filter(d => d.category === c.id); });
+DOC_CATEGORIES.forEach((c) => { grouped[c.id] = docs.filter((d) => d.category === c.id); });
 
-// ===== DETAIL VIEW =====
 if (viewDoc) {
-const cat = DOC_CATEGORIES.find(c => c.id === viewDoc.category);
+const cat = DOC_CATEGORIES.find((c) => c.id === viewDoc.category);
 return (
 <div>
-{/* Back button */}
 <button onClick={goBack} style={{ display: “flex”, alignItems: “center”, gap: 6, background: “none”, border: “none”, color: “#00D4AA”, fontSize: 13, fontWeight: 600, cursor: “pointer”, padding: “0 0 16px”, letterSpacing: 0.3 }}>
 ← Documentos
 </button>
-
-```
-    <Card style={{ borderColor: `${cat?.color || "#9CA3AF"}30` }}>
-      {/* Category badge */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: `${cat?.color || "#9CA3AF"}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
-          {cat?.icon || "📄"}
-        </div>
-        <span style={{ fontSize: 11, color: cat?.color || "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>{cat?.label || "Documento"}</span>
-      </div>
-
-      {!editing ? (
-        <>
-          {/* Detail view */}
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#E8ECF4", marginBottom: 16 }}>{viewDoc.name}</div>
-
-          {viewDoc.confirmation && (
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: "#8892A4", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Código confirmación</div>
-              <div style={{ fontSize: 15, color: "#00D4AA", fontWeight: 700, letterSpacing: 0.5 }}>🔑 {viewDoc.confirmation}</div>
-            </div>
-          )}
-
-          {viewDoc.url && (
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: "#8892A4", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Link</div>
-              <a href={viewDoc.url} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", background: "rgba(0,180,216,0.08)", borderRadius: 10, textDecoration: "none", border: "1px solid rgba(0,180,216,0.15)", transition: "all 0.2s" }}>
-                <span style={{ fontSize: 16 }}>🔗</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, color: "#00B4D8", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{viewDoc.url.replace(/https?:\/\/(www\.)?/, '').split('/')[0]}</div>
-                  <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{viewDoc.url}</div>
-                </div>
-                <span style={{ color: "#00B4D8", fontSize: 13, flexShrink: 0 }}>↗</span>
-              </a>
-            </div>
-          )}
-
-          {viewDoc.notes && (
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 11, color: "#8892A4", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Notas</div>
-              <div style={{ fontSize: 14, color: "#C8CDD8", lineHeight: 1.5 }}>{viewDoc.notes}</div>
-            </div>
-          )}
-
-          {/* Action buttons at bottom */}
-          <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 8 }}>
-            <Btn onClick={startEdit} variant="secondary" small style={{ flex: 1 }}>✏️ Editar</Btn>
-            {!confirmDelete ? (
-              <Btn onClick={() => setConfirmDelete(true)} variant="danger" small style={{ flex: 1 }}>🗑 Borrar</Btn>
-            ) : (
-              <Btn onClick={() => remove(viewDoc.id)} variant="danger" small style={{ flex: 1, background: "rgba(255,107,107,0.3)" }}>¿Seguro? Confirmar</Btn>
-            )}
-          </div>
-        </>
-      ) : (
-        <>
-          {/* Edit form */}
-          <div style={{ marginTop: 4 }}>
-            <Input label="Nombre" value={editForm.name} onChange={(v) => setEditForm({ ...editForm, name: v })} placeholder="Ej: Boarding Pass ida" />
-            <Input label="Link (Google Drive, email, web)" value={editForm.url} onChange={(v) => setEditForm({ ...editForm, url: v })} placeholder="https://..." />
-            <Input label="Código confirmación" value={editForm.confirmation} onChange={(v) => setEditForm({ ...editForm, confirmation: v })} placeholder="ABC123 (opcional)" />
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ display: "block", fontSize: 11, color: "#8892A4", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Categoría</label>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {DOC_CATEGORIES.map(c => (
-                  <button key={c.id} onClick={() => setEditForm({ ...editForm, category: c.id })} style={{ padding: "6px 12px", borderRadius: 20, border: editForm.category === c.id ? `2px solid ${c.color}` : "1px solid rgba(255,255,255,0.1)", background: editForm.category === c.id ? `${c.color}20` : "transparent", color: editForm.category === c.id ? c.color : "#8892A4", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
-                    {c.icon} {c.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <Input label="Notas" value={editForm.notes} onChange={(v) => setEditForm({ ...editForm, notes: v })} placeholder="Opcional" />
-            <div style={{ display: "flex", gap: 8 }}>
-              <Btn onClick={saveEdit} small style={{ flex: 1 }}>✓ Guardar</Btn>
-              <Btn onClick={() => setEditing(false)} variant="secondary" small>Cancelar</Btn>
-            </div>
-          </div>
-        </>
-      )}
-    </Card>
-  </div>
+<Card style={{ borderColor: `${cat?.color || "#9CA3AF"}30` }}>
+<div style={{ display: “flex”, alignItems: “center”, gap: 8, marginBottom: 16 }}>
+<div style={{ width: 36, height: 36, borderRadius: 10, background: `${cat?.color || "#9CA3AF"}18`, display: “flex”, alignItems: “center”, justifyContent: “center”, fontSize: 18 }}>{cat?.icon || “📄”}</div>
+<span style={{ fontSize: 11, color: cat?.color || “#9CA3AF”, fontWeight: 700, textTransform: “uppercase”, letterSpacing: 1 }}>{cat?.label || “Documento”}</span>
+</div>
+{!editing ? (
+<>
+<div style={{ fontSize: 18, fontWeight: 700, color: “#E8ECF4”, marginBottom: 16 }}>{viewDoc.name}</div>
+{viewDoc.confirmation && (
+<div style={{ marginBottom: 14 }}>
+<div style={{ fontSize: 11, color: “#8892A4”, fontWeight: 600, textTransform: “uppercase”, letterSpacing: 1, marginBottom: 4 }}>Codigo confirmacion</div>
+<div style={{ fontSize: 15, color: “#00D4AA”, fontWeight: 700 }}>🔑 {viewDoc.confirmation}</div>
+</div>
+)}
+{viewDoc.url && (
+<div style={{ marginBottom: 14 }}>
+<div style={{ fontSize: 11, color: “#8892A4”, fontWeight: 600, textTransform: “uppercase”, letterSpacing: 1, marginBottom: 6 }}>Link</div>
+<a href={viewDoc.url} target=”_blank” rel=“noopener noreferrer” style={{ display: “flex”, alignItems: “center”, gap: 8, padding: “12px 14px”, background: “rgba(0,180,216,0.08)”, borderRadius: 10, textDecoration: “none”, border: “1px solid rgba(0,180,216,0.15)” }}>
+<span style={{ fontSize: 16 }}>🔗</span>
+<div style={{ flex: 1, minWidth: 0 }}>
+<div style={{ fontSize: 13, color: “#00B4D8”, fontWeight: 600, overflow: “hidden”, textOverflow: “ellipsis”, whiteSpace: “nowrap” }}>{viewDoc.url.replace(/https?://(www.)?/, “”).split(”/”)[0]}</div>
+<div style={{ fontSize: 11, color: “#6B7280”, marginTop: 2, overflow: “hidden”, textOverflow: “ellipsis”, whiteSpace: “nowrap” }}>{viewDoc.url}</div>
+</div>
+<span style={{ color: “#00B4D8”, fontSize: 13, flexShrink: 0 }}>↗</span>
+</a>
+</div>
+)}
+{viewDoc.notes && (
+<div style={{ marginBottom: 14 }}>
+<div style={{ fontSize: 11, color: “#8892A4”, fontWeight: 600, textTransform: “uppercase”, letterSpacing: 1, marginBottom: 4 }}>Notas</div>
+<div style={{ fontSize: 14, color: “#C8CDD8”, lineHeight: 1.5 }}>{viewDoc.notes}</div>
+</div>
+)}
+<div style={{ marginTop: 20, paddingTop: 16, borderTop: “1px solid rgba(255,255,255,0.06)”, display: “flex”, gap: 8 }}>
+<Btn onClick={startEdit} variant=“secondary” small style={{ flex: 1 }}>Editar</Btn>
+{!confirmDelete ? (
+<Btn onClick={() => setConfirmDelete(true)} variant=“danger” small style={{ flex: 1 }}>Borrar</Btn>
+) : (
+<Btn onClick={() => remove(viewDoc.id)} variant=“danger” small style={{ flex: 1, background: “rgba(255,107,107,0.3)” }}>Confirmar borrar</Btn>
+)}
+</div>
+</>
+) : (
+<div style={{ marginTop: 4 }}>
+<Input label=“Nombre” value={editForm.name} onChange={(v) => setEditForm({ …editForm, name: v })} />
+<Input label=“Link” value={editForm.url} onChange={(v) => setEditForm({ …editForm, url: v })} placeholder=“https://…” />
+<Input label=“Codigo confirmacion” value={editForm.confirmation} onChange={(v) => setEditForm({ …editForm, confirmation: v })} />
+<div style={{ marginBottom: 14 }}>
+<label style={{ display: “block”, fontSize: 11, color: “#8892A4”, marginBottom: 8, fontWeight: 600, textTransform: “uppercase”, letterSpacing: 1 }}>Categoria</label>
+<div style={{ display: “flex”, flexWrap: “wrap”, gap: 6 }}>
+{DOC_CATEGORIES.map((c) => (
+<button key={c.id} onClick={() => setEditForm({ …editForm, category: c.id })} style={{ padding: “6px 12px”, borderRadius: 20, border: editForm.category === c.id ? `2px solid ${c.color}` : “1px solid rgba(255,255,255,0.1)”, background: editForm.category === c.id ? `${c.color}20` : “transparent”, color: editForm.category === c.id ? c.color : “#8892A4”, fontSize: 12, cursor: “pointer”, fontWeight: 600 }}>
+{c.icon} {c.label}
+</button>
+))}
+</div>
+</div>
+<Input label=“Notas” value={editForm.notes} onChange={(v) => setEditForm({ …editForm, notes: v })} />
+<div style={{ display: “flex”, gap: 8 }}>
+<Btn onClick={saveEdit} small style={{ flex: 1 }}>Guardar</Btn>
+<Btn onClick={() => setEditing(false)} variant=“secondary” small>Cancelar</Btn>
+</div>
+</div>
+)}
+</Card>
+</div>
 );
-```
-
 }
 
-// ===== LIST VIEW =====
 return (
 <div>
 <div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 16 }}>
-<div style={{ fontSize: 18, fontWeight: 800, color: “#E8ECF4”, fontFamily: “‘Playfair Display’, serif” }}>📁 Documentos</div>
-<Btn onClick={() => setAdding(!adding)} small>{adding ? “✕ Cerrar” : “+ Agregar”}</Btn>
+<div style={{ fontSize: 18, fontWeight: 800, color: “#E8ECF4” }}>📁 Documentos</div>
+<Btn onClick={() => setAdding(!adding)} small>{adding ? “x Cerrar” : “+ Agregar”}</Btn>
 </div>
-
-```
-  {adding && (
-    <Card style={{ marginBottom: 16, borderColor: "rgba(0,212,170,0.2)" }}>
-      <Input label="Nombre" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="Ej: Boarding Pass ida, Reserva Airbnb" />
-      <Input label="Link (Google Drive, email, web)" value={form.url} onChange={(v) => setForm({ ...form, url: v })} placeholder="https://..." />
-      <Input label="Código confirmación" value={form.confirmation} onChange={(v) => setForm({ ...form, confirmation: v })} placeholder="ABC123 (opcional)" />
-      <div style={{ marginBottom: 14 }}>
-        <label style={{ display: "block", fontSize: 11, color: "#8892A4", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Categoría</label>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {DOC_CATEGORIES.map(cat => (
-            <button key={cat.id} onClick={() => setForm({ ...form, category: cat.id })} style={{ padding: "6px 12px", borderRadius: 20, border: form.category === cat.id ? `2px solid ${cat.color}` : "1px solid rgba(255,255,255,0.1)", background: form.category === cat.id ? `${cat.color}20` : "transparent", color: form.category === cat.id ? cat.color : "#8892A4", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>
-              {cat.icon} {cat.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <Input label="Notas" value={form.notes} onChange={(v) => setForm({ ...form, notes: v })} placeholder="Opcional" />
-      <Btn onClick={add} style={{ width: "100%" }}>Guardar Documento</Btn>
-    </Card>
-  )}
-
-  {docs.length === 0 && !adding && (
-    <Card style={{ textAlign: "center", padding: 40 }}>
-      <div style={{ fontSize: 40, marginBottom: 10 }}>📁</div>
-      <div style={{ fontSize: 14, color: "#8892A4" }}>Guardá links a tus confirmaciones y documentos</div>
-      <div style={{ fontSize: 12, color: "#6B7280", marginTop: 8 }}>Subí los PDFs a Google Drive y pegá el link acá</div>
-    </Card>
-  )}
-
-  {DOC_CATEGORIES.map(cat => {
-    const catDocs = grouped[cat.id];
-    if (!catDocs || catDocs.length === 0) return null;
-    return (
-      <div key={cat.id} style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 12, color: cat.color, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-          {cat.icon} {cat.label}
-        </div>
-        {catDocs.map(doc => (
-          <Card key={doc.id} onClick={() => openDetail(doc)} style={{ marginBottom: 8, padding: 14, cursor: "pointer" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#E8ECF4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.name}</div>
-                {doc.confirmation && (
-                  <div style={{ fontSize: 11, color: "#00D4AA", fontWeight: 600, marginTop: 3 }}>🔑 {doc.confirmation}</div>
-                )}
-              </div>
-              <span style={{ color: "#4B5563", fontSize: 14, flexShrink: 0 }}>›</span>
-            </div>
-          </Card>
-        ))}
-      </div>
-    );
-  })}
+{adding && (
+<Card style={{ marginBottom: 16, borderColor: “rgba(0,212,170,0.2)” }}>
+<Input label=“Nombre” value={form.name} onChange={(v) => setForm({ …form, name: v })} placeholder=“Ej: Boarding Pass ida” />
+<Input label=“Link” value={form.url} onChange={(v) => setForm({ …form, url: v })} placeholder=“https://…” />
+<Input label=“Codigo confirmacion” value={form.confirmation} onChange={(v) => setForm({ …form, confirmation: v })} placeholder=“ABC123 (opcional)” />
+<div style={{ marginBottom: 14 }}>
+<label style={{ display: “block”, fontSize: 11, color: “#8892A4”, marginBottom: 8, fontWeight: 600, textTransform: “uppercase”, letterSpacing: 1 }}>Categoria</label>
+<div style={{ display: “flex”, flexWrap: “wrap”, gap: 6 }}>
+{DOC_CATEGORIES.map((cat) => (
+<button key={cat.id} onClick={() => setForm({ …form, category: cat.id })} style={{ padding: “6px 12px”, borderRadius: 20, border: form.category === cat.id ? `2px solid ${cat.color}` : “1px solid rgba(255,255,255,0.1)”, background: form.category === cat.id ? `${cat.color}20` : “transparent”, color: form.category === cat.id ? cat.color : “#8892A4”, fontSize: 12, cursor: “pointer”, fontWeight: 600 }}>
+{cat.icon} {cat.label}
+</button>
+))}
 </div>
-```
-
+</div>
+<Input label=“Notas” value={form.notes} onChange={(v) => setForm({ …form, notes: v })} placeholder=“Opcional” />
+<Btn onClick={add} style={{ width: “100%” }}>Guardar Documento</Btn>
+</Card>
+)}
+{docs.length === 0 && !adding && (
+<Card style={{ textAlign: “center”, padding: 40 }}>
+<div style={{ fontSize: 40, marginBottom: 10 }}>📁</div>
+<div style={{ fontSize: 14, color: “#8892A4” }}>Guarda links a tus confirmaciones y documentos</div>
+</Card>
+)}
+{DOC_CATEGORIES.map((cat) => {
+const catDocs = grouped[cat.id];
+if (!catDocs || catDocs.length === 0) return null;
+return (
+<div key={cat.id} style={{ marginBottom: 16 }}>
+<div style={{ fontSize: 12, color: cat.color, fontWeight: 700, textTransform: “uppercase”, letterSpacing: 1, marginBottom: 8 }}>{cat.icon} {cat.label}</div>
+{catDocs.map((doc) => (
+<Card key={doc.id} onClick={() => openDetail(doc)} style={{ marginBottom: 8, padding: 14, cursor: “pointer” }}>
+<div style={{ display: “flex”, alignItems: “center”, gap: 12 }}>
+<div style={{ flex: 1, minWidth: 0 }}>
+<div style={{ fontSize: 14, fontWeight: 600, color: “#E8ECF4”, overflow: “hidden”, textOverflow: “ellipsis”, whiteSpace: “nowrap” }}>{doc.name}</div>
+{doc.confirmation && <div style={{ fontSize: 11, color: “#00D4AA”, fontWeight: 600, marginTop: 3 }}>🔑 {doc.confirmation}</div>}
+</div>
+<span style={{ color: “#4B5563”, fontSize: 14, flexShrink: 0 }}>›</span>
+</div>
+</Card>
+))}
+</div>
+);
+})}
+</div>
 );
 }
 
@@ -1098,9 +916,8 @@ const [form, setForm] = useState({ date: “”, title: “”, activities: “�
 const [confirmDelete, setConfirmDelete] = useState(false);
 
 const itinerary = data.itinerary || [];
-const viewDay = itinerary.find(d => d.id === viewing);
-
-const dayNames = [“Dom”, “Lun”, “Mar”, “Mié”, “Jue”, “Vie”, “Sáb”];
+const viewDay = itinerary.find((d) => d.id === viewing);
+const dayNames = [“Dom”, “Lun”, “Mar”, “Mie”, “Jue”, “Vie”, “Sab”];
 const today = getMiamiToday();
 
 const add = () => {
@@ -1110,37 +927,12 @@ updateData({ …data, itinerary: […itinerary, item].sort((a, b) => a.date.loca
 setForm({ date: “”, title: “”, activities: “”, notes: “” });
 setAdding(false);
 };
-const remove = (id) => {
-updateData({ …data, itinerary: itinerary.filter(i => i.id !== id) });
-setViewing(null);
-setEditing(false);
-setConfirmDelete(false);
-};
-const openDetail = (day) => {
-setViewing(day.id);
-setEditing(false);
-setConfirmDelete(false);
-setAdding(false);
-};
-const startEdit = () => {
-if (!viewDay) return;
-setEditForm({ date: viewDay.date || “”, title: viewDay.title || “”, activities: viewDay.activities || “”, notes: viewDay.notes || “” });
-setEditing(true);
-setConfirmDelete(false);
-};
-const saveEdit = () => {
-if (!viewing) return;
-const updated = itinerary.map(d => d.id === viewing ? { …d, …editForm } : d).sort((a, b) => a.date.localeCompare(b.date));
-updateData({ …data, itinerary: updated });
-setEditing(false);
-};
-const goBack = () => {
-setViewing(null);
-setEditing(false);
-setConfirmDelete(false);
-};
+const remove = (id) => { updateData({ …data, itinerary: itinerary.filter((i) => i.id !== id) }); setViewing(null); setEditing(false); setConfirmDelete(false); };
+const openDetail = (day) => { setViewing(day.id); setEditing(false); setConfirmDelete(false); setAdding(false); };
+const startEdit = () => { if (!viewDay) return; setEditForm({ date: viewDay.date || “”, title: viewDay.title || “”, activities: viewDay.activities || “”, notes: viewDay.notes || “” }); setEditing(true); setConfirmDelete(false); };
+const saveEdit = () => { if (!viewing) return; const updated = itinerary.map((d) => d.id === viewing ? { …d, …editForm } : d).sort((a, b) => a.date.localeCompare(b.date)); updateData({ …data, itinerary: updated }); setEditing(false); };
+const goBack = () => { setViewing(null); setEditing(false); setConfirmDelete(false); };
 
-// Helper to render activity lines with clickable URLs
 const renderActivities = (activities) => {
 if (!activities) return null;
 return activities.split(”\n”).filter(Boolean).map((act, i) => {
@@ -1150,7 +942,7 @@ const parts = act.split(urlMatch[0]);
 return (
 <div key={i} style={{ fontSize: 14, color: “#C8CDD8”, padding: “5px 0”, display: “flex”, gap: 10, lineHeight: 1.5 }}>
 <span style={{ color: “#00D4AA”, flexShrink: 0, marginTop: 1 }}>›</span>
-<span>{parts[0]}<a href={urlMatch[0]} target=”_blank” rel=“noopener noreferrer” style={{ color: “#00B4D8”, textDecoration: “none”, fontWeight: 600 }}>{urlMatch[0].replace(/https?://(www.)?/, ‘’).split(’/’)[0]}</a>{parts[1]}</span>
+<span>{parts[0]}<a href={urlMatch[0]} target=”_blank” rel=“noopener noreferrer” style={{ color: “#00B4D8”, textDecoration: “none”, fontWeight: 600 }}>{urlMatch[0].replace(/https?://(www.)?/, “”).split(”/”)[0]}</a>{parts[1]}</span>
 </div>
 );
 }
@@ -1162,63 +954,50 @@ return (
 });
 };
 
-// ===== DETAIL VIEW =====
 if (viewDay) {
 const d = viewDay.date ? new Date(viewDay.date + “T12:00:00”) : null;
 const dayLabel = d ? dayNames[d.getDay()] : “”;
-const dayIdx = itinerary.findIndex(i => i.id === viewDay.id);
+const dayIdx = itinerary.findIndex((i) => i.id === viewDay.id);
 const isToday = viewDay.date === today;
-
-```
-// Navigation between days
 const prevDay = dayIdx > 0 ? itinerary[dayIdx - 1] : null;
 const nextDay = dayIdx < itinerary.length - 1 ? itinerary[dayIdx + 1] : null;
 
+```
 return (
   <div>
-    {/* Back button */}
-    <button onClick={goBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "#00D4AA", fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "0 0 16px", letterSpacing: 0.3 }}>
-      ← Itinerario
+    <button onClick={goBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "#00D4AA", fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "0 0 16px" }}>
+      &larr; Itinerario
     </button>
-
     <Card style={{ borderColor: isToday ? "rgba(0,212,170,0.4)" : undefined, background: isToday ? "rgba(0,212,170,0.04)" : undefined }}>
       {isToday && (
         <div style={{ fontSize: 10, color: "#00D4AA", fontWeight: 800, textTransform: "uppercase", letterSpacing: 2, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ width: 6, height: 6, borderRadius: 3, background: "#00D4AA", animation: "pulse 1.5s infinite" }} /> Hoy
         </div>
       )}
-
       {!editing ? (
         <>
-          {/* Day header */}
           <div style={{ fontSize: 11, color: "#00D4AA", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
-            {dayLabel} {viewDay.date?.slice(5)} — Día {dayIdx + 1}
+            {dayLabel} {viewDay.date?.slice(5)} - Dia {dayIdx + 1}
           </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#E8ECF4", marginBottom: 18, fontFamily: "'Playfair Display', serif" }}>{viewDay.title}</div>
-
-          {/* Activities */}
+          <div style={{ fontSize: 22, fontWeight: 800, color: "#E8ECF4", marginBottom: 18 }}>{viewDay.title}</div>
           {viewDay.activities && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 11, color: "#8892A4", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Actividades</div>
               {renderActivities(viewDay.activities)}
             </div>
           )}
-
-          {/* Notes */}
           {viewDay.notes && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 11, color: "#8892A4", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Notas</div>
               <div style={{ fontSize: 14, color: "#C8CDD8", lineHeight: 1.5, fontStyle: "italic" }}>{viewDay.notes}</div>
             </div>
           )}
-
-          {/* Day navigation */}
           <div style={{ display: "flex", gap: 8, marginTop: 16, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
             {prevDay ? (
               <button onClick={() => openDetail(prevDay)} style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, padding: "10px 12px", background: "rgba(255,255,255,0.04)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)", cursor: "pointer", color: "#8892A4", fontSize: 12 }}>
                 <span>←</span>
                 <div style={{ textAlign: "left", minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 10, color: "#6B7280", textTransform: "uppercase" }}>Día {dayIdx}</div>
+                  <div style={{ fontSize: 10, color: "#6B7280", textTransform: "uppercase" }}>Dia {dayIdx}</div>
                   <div style={{ fontSize: 12, color: "#C8CDD8", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{prevDay.title}</div>
                 </div>
               </button>
@@ -1226,40 +1005,37 @@ return (
             {nextDay ? (
               <button onClick={() => openDetail(nextDay)} style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, padding: "10px 12px", background: "rgba(255,255,255,0.04)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)", cursor: "pointer", color: "#8892A4", fontSize: 12 }}>
                 <div style={{ textAlign: "right", minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 10, color: "#6B7280", textTransform: "uppercase" }}>Día {dayIdx + 2}</div>
+                  <div style={{ fontSize: 10, color: "#6B7280", textTransform: "uppercase" }}>Dia {dayIdx + 2}</div>
                   <div style={{ fontSize: 12, color: "#C8CDD8", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nextDay.title}</div>
                 </div>
                 <span>→</span>
               </button>
             ) : <div style={{ flex: 1 }} />}
           </div>
-
-          {/* Action buttons */}
           <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-            <Btn onClick={startEdit} variant="secondary" small style={{ flex: 1 }}>✏️ Editar</Btn>
+            <Btn onClick={startEdit} variant="secondary" small style={{ flex: 1 }}>Editar</Btn>
             {!confirmDelete ? (
-              <Btn onClick={() => setConfirmDelete(true)} variant="danger" small style={{ flex: 1 }}>🗑 Borrar</Btn>
+              <Btn onClick={() => setConfirmDelete(true)} variant="danger" small style={{ flex: 1 }}>Borrar</Btn>
             ) : (
-              <Btn onClick={() => remove(viewDay.id)} variant="danger" small style={{ flex: 1, background: "rgba(255,107,107,0.3)" }}>¿Seguro? Confirmar</Btn>
+              <Btn onClick={() => remove(viewDay.id)} variant="danger" small style={{ flex: 1, background: "rgba(255,107,107,0.3)" }}>Confirmar borrar</Btn>
             )}
           </div>
         </>
       ) : (
         <>
-          {/* Edit form */}
-          <div style={{ fontSize: 11, color: "#00D4AA", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>Editar día</div>
+          <div style={{ fontSize: 11, color: "#00D4AA", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>Editar dia</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <Input label="Fecha" value={editForm.date} onChange={(v) => setEditForm({ ...editForm, date: v })} type="date" />
-            <Input label="Título" value={editForm.title} onChange={(v) => setEditForm({ ...editForm, title: v })} />
+            <Input label="Titulo" value={editForm.title} onChange={(v) => setEditForm({ ...editForm, title: v })} />
           </div>
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: "block", fontSize: 11, color: "#8892A4", marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Actividades (una por línea)</label>
+            <label style={{ display: "block", fontSize: 11, color: "#8892A4", marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Actividades (una por linea)</label>
             <textarea value={editForm.activities} onChange={(e) => setEditForm({ ...editForm, activities: e.target.value })} rows={6}
               style={{ width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#E8ECF4", fontSize: 13, outline: "none", resize: "vertical", boxSizing: "border-box", lineHeight: 1.6 }} />
           </div>
           <Input label="Notas" value={editForm.notes} onChange={(v) => setEditForm({ ...editForm, notes: v })} />
           <div style={{ display: "flex", gap: 8 }}>
-            <Btn onClick={saveEdit} small style={{ flex: 1 }}>✓ Guardar</Btn>
+            <Btn onClick={saveEdit} small style={{ flex: 1 }}>Guardar</Btn>
             <Btn onClick={() => setEditing(false)} variant="secondary" small>Cancelar</Btn>
           </div>
         </>
@@ -1271,87 +1047,77 @@ return (
 
 }
 
-// ===== LIST VIEW =====
 return (
 <div>
 <div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 16 }}>
-<div style={{ fontSize: 18, fontWeight: 800, color: “#E8ECF4”, fontFamily: “‘Playfair Display’, serif” }}>📋 Itinerario</div>
-<Btn onClick={() => setAdding(!adding)} small>{adding ? “✕ Cerrar” : “+ Agregar día”}</Btn>
+<div style={{ fontSize: 18, fontWeight: 800, color: “#E8ECF4” }}>📋 Itinerario</div>
+<Btn onClick={() => setAdding(!adding)} small>{adding ? “x Cerrar” : “+ Agregar dia”}</Btn>
 </div>
-
-```
-  {adding && (
-    <Card style={{ marginBottom: 16, borderColor: "rgba(0,212,170,0.2)" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <Input label="Fecha" value={form.date} onChange={(v) => setForm({ ...form, date: v })} type="date" />
-        <Input label="Título del día" value={form.title} onChange={(v) => setForm({ ...form, title: v })} placeholder="Ej: South Beach" />
-      </div>
-      <div style={{ marginBottom: 14 }}>
-        <label style={{ display: "block", fontSize: 11, color: "#8892A4", marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Actividades (una por línea)</label>
-        <textarea value={form.activities} onChange={(e) => setForm({ ...form, activities: e.target.value })} placeholder={"9:00 - Desayuno\n11:00 - South Beach\n13:00 - Almuerzo\n16:00 - Wynwood Walls"} rows={5}
-          style={{ width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#E8ECF4", fontSize: 13, outline: "none", resize: "vertical", boxSizing: "border-box", lineHeight: 1.6 }} />
-      </div>
-      <Input label="Notas" value={form.notes} onChange={(v) => setForm({ ...form, notes: v })} />
-      <Btn onClick={add} style={{ width: "100%" }}>Guardar Día</Btn>
-    </Card>
-  )}
-
-  {itinerary.length === 0 && !adding && (
-    <Card style={{ textAlign: "center", padding: 40 }}>
-      <div style={{ fontSize: 40, marginBottom: 10 }}>🗓️</div>
-      <div style={{ fontSize: 14, color: "#8892A4" }}>Planificá tu itinerario día por día</div>
-    </Card>
-  )}
-
-  {itinerary.map((day, idx) => {
-    const d = day.date ? new Date(day.date + "T12:00:00") : null;
-    const dayLabel = d ? dayNames[d.getDay()] : "";
-    const isToday = day.date === today;
-
-    return (
-      <Card key={day.id} onClick={() => openDetail(day)} style={{ marginBottom: 10, padding: 14, cursor: "pointer", borderColor: isToday ? "rgba(0,212,170,0.4)" : undefined, background: isToday ? "rgba(0,212,170,0.06)" : undefined }}>
-        {isToday && <div style={{ fontSize: 10, color: "#00D4AA", fontWeight: 800, textTransform: "uppercase", letterSpacing: 2, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 6, height: 6, borderRadius: 3, background: "#00D4AA", animation: "pulse 1.5s infinite" }} /> Hoy</div>}
-        {/* Header with date box */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: day.activities ? 10 : 0 }}>
-          <div style={{ width: 42, height: 42, borderRadius: 12, background: isToday ? "rgba(0,212,170,0.15)" : "rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <div style={{ fontSize: 9, color: isToday ? "#00D4AA" : "#6B7280", fontWeight: 700, textTransform: "uppercase", lineHeight: 1 }}>{dayLabel}</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: isToday ? "#00D4AA" : "#E8ECF4", lineHeight: 1.2 }}>{d ? d.getDate() : "?"}</div>
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 11, color: "#00D4AA", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Día {idx + 1}</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#E8ECF4", marginTop: 2 }}>{day.title}</div>
-          </div>
-          <span style={{ color: "#4B5563", fontSize: 14, flexShrink: 0 }}>›</span>
-        </div>
-        {/* Activities */}
-        {day.activities && (
-          <div>
-            {day.activities.split("\n").filter(Boolean).map((act, i) => {
-              const urlMatch = act.match(/(https?:\/\/[^\s]+)/);
-              if (urlMatch) {
-                const parts = act.split(urlMatch[0]);
-                return (
-                  <div key={i} style={{ fontSize: 13, color: "#C8CDD8", padding: "3px 0", display: "flex", gap: 8 }}>
-                    <span style={{ color: "#00D4AA", flexShrink: 0 }}>›</span>
-                    <span>{parts[0]}<span style={{ color: "#00B4D8", fontWeight: 600 }}>{urlMatch[0].replace(/https?:\/\/(www\.)?/, '').split('/')[0]}</span>{parts[1]}</span>
-                  </div>
-                );
-              }
-              return (
-                <div key={i} style={{ fontSize: 13, color: "#C8CDD8", padding: "3px 0", display: "flex", gap: 8 }}>
-                  <span style={{ color: "#00D4AA", flexShrink: 0 }}>›</span>{act}
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {day.notes && <div style={{ fontSize: 12, color: "#8892A4", marginTop: 6, fontStyle: "italic" }}>{day.notes}</div>}
-      </Card>
-    );
-  })}
+{adding && (
+<Card style={{ marginBottom: 16, borderColor: “rgba(0,212,170,0.2)” }}>
+<div style={{ display: “grid”, gridTemplateColumns: “1fr 1fr”, gap: 10 }}>
+<Input label=“Fecha” value={form.date} onChange={(v) => setForm({ …form, date: v })} type=“date” />
+<Input label=“Titulo del dia” value={form.title} onChange={(v) => setForm({ …form, title: v })} placeholder=“Ej: South Beach” />
 </div>
-```
-
+<div style={{ marginBottom: 14 }}>
+<label style={{ display: “block”, fontSize: 11, color: “#8892A4”, marginBottom: 6, fontWeight: 600, textTransform: “uppercase”, letterSpacing: 1 }}>Actividades (una por linea)</label>
+<textarea value={form.activities} onChange={(e) => setForm({ …form, activities: e.target.value })} placeholder={“9:00 - Desayuno\n11:00 - South Beach\n13:00 - Almuerzo”} rows={5}
+style={{ width: “100%”, padding: “10px 14px”, background: “rgba(255,255,255,0.06)”, border: “1px solid rgba(255,255,255,0.1)”, borderRadius: 10, color: “#E8ECF4”, fontSize: 13, outline: “none”, resize: “vertical”, boxSizing: “border-box”, lineHeight: 1.6 }} />
+</div>
+<Input label=“Notas” value={form.notes} onChange={(v) => setForm({ …form, notes: v })} />
+<Btn onClick={add} style={{ width: “100%” }}>Guardar Dia</Btn>
+</Card>
+)}
+{itinerary.length === 0 && !adding && (
+<Card style={{ textAlign: “center”, padding: 40 }}>
+<div style={{ fontSize: 40, marginBottom: 10 }}>🗓️</div>
+<div style={{ fontSize: 14, color: “#8892A4” }}>Planifica tu itinerario dia por dia</div>
+</Card>
+)}
+{itinerary.map((day, idx) => {
+const d = day.date ? new Date(day.date + “T12:00:00”) : null;
+const dayLabel = d ? dayNames[d.getDay()] : “”;
+const isToday = day.date === today;
+return (
+<Card key={day.id} onClick={() => openDetail(day)} style={{ marginBottom: 10, padding: 14, cursor: “pointer”, borderColor: isToday ? “rgba(0,212,170,0.4)” : undefined, background: isToday ? “rgba(0,212,170,0.06)” : undefined }}>
+{isToday && <div style={{ fontSize: 10, color: “#00D4AA”, fontWeight: 800, textTransform: “uppercase”, letterSpacing: 2, marginBottom: 8, display: “flex”, alignItems: “center”, gap: 6 }}><span style={{ width: 6, height: 6, borderRadius: 3, background: “#00D4AA”, animation: “pulse 1.5s infinite” }} /> Hoy</div>}
+<div style={{ display: “flex”, alignItems: “center”, gap: 12, marginBottom: day.activities ? 10 : 0 }}>
+<div style={{ width: 42, height: 42, borderRadius: 12, background: isToday ? “rgba(0,212,170,0.15)” : “rgba(255,255,255,0.06)”, display: “flex”, flexDirection: “column”, alignItems: “center”, justifyContent: “center”, flexShrink: 0 }}>
+<div style={{ fontSize: 9, color: isToday ? “#00D4AA” : “#6B7280”, fontWeight: 700, textTransform: “uppercase”, lineHeight: 1 }}>{dayLabel}</div>
+<div style={{ fontSize: 16, fontWeight: 800, color: isToday ? “#00D4AA” : “#E8ECF4”, lineHeight: 1.2 }}>{d ? d.getDate() : “?”}</div>
+</div>
+<div style={{ flex: 1, minWidth: 0 }}>
+<div style={{ fontSize: 11, color: “#00D4AA”, fontWeight: 700, textTransform: “uppercase”, letterSpacing: 1 }}>Dia {idx + 1}</div>
+<div style={{ fontSize: 15, fontWeight: 700, color: “#E8ECF4”, marginTop: 2 }}>{day.title}</div>
+</div>
+<span style={{ color: “#4B5563”, fontSize: 14, flexShrink: 0 }}>›</span>
+</div>
+{day.activities && (
+<div>
+{day.activities.split(”\n”).filter(Boolean).map((act, i) => {
+const urlMatch = act.match(/(https?://[^\s]+)/);
+if (urlMatch) {
+const parts = act.split(urlMatch[0]);
+return (
+<div key={i} style={{ fontSize: 13, color: “#C8CDD8”, padding: “3px 0”, display: “flex”, gap: 8 }}>
+<span style={{ color: “#00D4AA”, flexShrink: 0 }}>›</span>
+<span>{parts[0]}<span style={{ color: “#00B4D8”, fontWeight: 600 }}>{urlMatch[0].replace(/https?://(www.)?/, “”).split(”/”)[0]}</span>{parts[1]}</span>
+</div>
+);
+}
+return (
+<div key={i} style={{ fontSize: 13, color: “#C8CDD8”, padding: “3px 0”, display: “flex”, gap: 8 }}>
+<span style={{ color: “#00D4AA”, flexShrink: 0 }}>›</span>{act}
+</div>
+);
+})}
+</div>
+)}
+{day.notes && <div style={{ fontSize: 12, color: “#8892A4”, marginTop: 6, fontStyle: “italic” }}>{day.notes}</div>}
+</Card>
+);
+})}
+</div>
 );
 }
 
@@ -1365,34 +1131,17 @@ const addPhotoRef = useRef(null);
 
 const checklist = data.checklist || [];
 const shopping = data.shopping || [];
-const checkedEquip = checklist.filter(i => i.checked).length;
-const checkedShop = shopping.filter(i => i.bought).length;
+const checkedEquip = checklist.filter((i) => i.checked).length;
+const checkedShop = shopping.filter((i) => i.bought).length;
 
-// Equipaje
-const toggleEquip = (id) => {
-const updated = checklist.map(i => i.id === id ? { …i, checked: !i.checked } : i);
-updateData({ …data, checklist: updated });
-};
-const addEquip = () => {
-if (!newItem.trim()) return;
-updateData({ …data, checklist: […checklist, { id: Date.now().toString(), text: newItem.trim(), checked: false }] });
-setNewItem(””);
-};
-const removeEquip = (id) => updateData({ …data, checklist: checklist.filter(i => i.id !== id) });
+const toggleEquip = (id) => { const updated = checklist.map((i) => i.id === id ? { …i, checked: !i.checked } : i); updateData({ …data, checklist: updated }); };
+const addEquip = () => { if (!newItem.trim()) return; updateData({ …data, checklist: […checklist, { id: Date.now().toString(), text: newItem.trim(), checked: false }] }); setNewItem(””); };
+const removeEquip = (id) => updateData({ …data, checklist: checklist.filter((i) => i.id !== id) });
 
-// Shopping
-const toggleShop = (id) => {
-const updated = shopping.map(i => i.id === id ? { …i, bought: !i.bought } : i);
-updateData({ …data, shopping: updated });
-};
-const addShop = () => {
-if (!newShopItem.trim()) return;
-updateData({ …data, shopping: […shopping, { id: Date.now().toString(), text: newShopItem.trim(), bought: false, photo: “” }] });
-setNewShopItem(””);
-};
-const removeShop = (id) => updateData({ …data, shopping: shopping.filter(i => i.id !== id) });
+const toggleShop = (id) => { const updated = shopping.map((i) => i.id === id ? { …i, bought: !i.bought } : i); updateData({ …data, shopping: updated }); };
+const addShop = () => { if (!newShopItem.trim()) return; updateData({ …data, shopping: […shopping, { id: Date.now().toString(), text: newShopItem.trim(), bought: false, photo: “” }] }); setNewShopItem(””); };
+const removeShop = (id) => updateData({ …data, shopping: shopping.filter((i) => i.id !== id) });
 
-// Photo upload
 const uploadPhoto = async (itemId, file) => {
 if (!file) return;
 setUploading(itemId);
@@ -1402,7 +1151,7 @@ const path = `shopping/${itemId}_${Date.now()}_${file.name}`;
 const sRef = storageRef(storage, path);
 await uploadBytes(sRef, file);
 const url = await getDownloadURL(sRef);
-const updated = shopping.map(i => i.id === itemId ? { …i, photo: url } : i);
+const updated = shopping.map((i) => i.id === itemId ? { …i, photo: url } : i);
 updateData({ …data, shopping: updated });
 } catch (err) {
 console.error(“Error subiendo foto:”, err);
@@ -1410,47 +1159,28 @@ console.error(“Error subiendo foto:”, err);
 setUploading(null);
 };
 
-const removePhoto = (itemId) => {
-const updated = shopping.map(i => i.id === itemId ? { …i, photo: “” } : i);
-updateData({ …data, shopping: updated });
-};
-
-const triggerFileInput = (itemId) => {
-addPhotoRef.current = itemId;
-fileInputRef.current?.click();
-};
-
-const handleFileChange = (e) => {
-const file = e.target.files?.[0];
-if (file && addPhotoRef.current) {
-uploadPhoto(addPhotoRef.current, file);
-}
-e.target.value = “”;
-};
+const removePhoto = (itemId) => { const updated = shopping.map((i) => i.id === itemId ? { …i, photo: “” } : i); updateData({ …data, shopping: updated }); };
+const triggerFileInput = (itemId) => { addPhotoRef.current = itemId; fileInputRef.current?.click(); };
+const handleFileChange = (e) => { const file = e.target.files?.[0]; if (file && addPhotoRef.current) uploadPhoto(addPhotoRef.current, file); e.target.value = “”; };
 
 return (
 <div>
-<div style={{ fontSize: 18, fontWeight: 800, color: “#E8ECF4”, marginBottom: 16, fontFamily: “‘Playfair Display’, serif” }}>📝 Listas</div>
+<div style={{ fontSize: 18, fontWeight: 800, color: “#E8ECF4”, marginBottom: 16 }}>📝 Listas</div>
+<input ref={fileInputRef} type=“file” accept=“image/*” onChange={handleFileChange} style={{ display: “none” }} />
+<div style={{ display: “flex”, gap: 8, marginBottom: 16 }}>
+<button onClick={() => setActiveList(“equipaje”)} style={{ flex: 1, padding: “10px 14px”, borderRadius: 10, border: activeList === “equipaje” ? “1px solid rgba(0,212,170,0.3)” : “1px solid rgba(255,255,255,0.06)”, background: activeList === “equipaje” ? “rgba(0,212,170,0.1)” : “rgba(255,255,255,0.04)”, cursor: “pointer”, textAlign: “center” }}>
+<div style={{ fontSize: 18, marginBottom: 4 }}>🧳</div>
+<div style={{ fontSize: 12, fontWeight: 700, color: activeList === “equipaje” ? “#00D4AA” : “#8892A4” }}>Equipaje</div>
+<div style={{ fontSize: 10, color: “#6B7280”, marginTop: 2 }}>{checkedEquip}/{checklist.length}</div>
+</button>
+<button onClick={() => setActiveList(“compras”)} style={{ flex: 1, padding: “10px 14px”, borderRadius: 10, border: activeList === “compras” ? “1px solid rgba(167,139,250,0.3)” : “1px solid rgba(255,255,255,0.06)”, background: activeList === “compras” ? “rgba(167,139,250,0.1)” : “rgba(255,255,255,0.04)”, cursor: “pointer”, textAlign: “center” }}>
+<div style={{ fontSize: 18, marginBottom: 4 }}>🛍️</div>
+<div style={{ fontSize: 12, fontWeight: 700, color: activeList === “compras” ? “#A78BFA” : “#8892A4” }}>Compras Miami</div>
+<div style={{ fontSize: 10, color: “#6B7280”, marginTop: 2 }}>{checkedShop}/{shopping.length}</div>
+</button>
+</div>
 
 ```
-  {/* Hidden file input */}
-  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: "none" }} />
-
-  {/* Tab selector */}
-  <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-    <button onClick={() => setActiveList("equipaje")} style={{ flex: 1, padding: "10px 14px", borderRadius: 10, border: activeList === "equipaje" ? "1px solid rgba(0,212,170,0.3)" : "1px solid rgba(255,255,255,0.06)", background: activeList === "equipaje" ? "rgba(0,212,170,0.1)" : "rgba(255,255,255,0.04)", cursor: "pointer", textAlign: "center" }}>
-      <div style={{ fontSize: 18, marginBottom: 4 }}>🧳</div>
-      <div style={{ fontSize: 12, fontWeight: 700, color: activeList === "equipaje" ? "#00D4AA" : "#8892A4" }}>Equipaje</div>
-      <div style={{ fontSize: 10, color: "#6B7280", marginTop: 2 }}>{checkedEquip}/{checklist.length}</div>
-    </button>
-    <button onClick={() => setActiveList("compras")} style={{ flex: 1, padding: "10px 14px", borderRadius: 10, border: activeList === "compras" ? "1px solid rgba(167,139,250,0.3)" : "1px solid rgba(255,255,255,0.06)", background: activeList === "compras" ? "rgba(167,139,250,0.1)" : "rgba(255,255,255,0.04)", cursor: "pointer", textAlign: "center" }}>
-      <div style={{ fontSize: 18, marginBottom: 4 }}>🛍️</div>
-      <div style={{ fontSize: 12, fontWeight: 700, color: activeList === "compras" ? "#A78BFA" : "#8892A4" }}>Compras Miami</div>
-      <div style={{ fontSize: 10, color: "#6B7280", marginTop: 2 }}>{checkedShop}/{shopping.length}</div>
-    </button>
-  </div>
-
-  {/* ===== EQUIPAJE ===== */}
   {activeList === "equipaje" && (
     <div>
       {checklist.length > 0 && (
@@ -1461,16 +1191,13 @@ return (
           <div style={{ fontSize: 11, color: "#8892A4", textAlign: "right" }}>{Math.round(checklist.length > 0 ? (checkedEquip / checklist.length) * 100 : 0)}% listo</div>
         </Card>
       )}
-
       {checklist.map((item) => (
         <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-          <input type="checkbox" checked={item.checked} onChange={() => toggleEquip(item.id)}
-            style={{ width: 20, height: 20, accentColor: "#00D4AA", flexShrink: 0, cursor: "pointer" }} />
+          <input type="checkbox" checked={item.checked} onChange={() => toggleEquip(item.id)} style={{ width: 20, height: 20, accentColor: "#00D4AA", flexShrink: 0, cursor: "pointer" }} />
           <span style={{ flex: 1, fontSize: 14, color: item.checked ? "#6B7280" : "#E8ECF4", textDecoration: item.checked ? "line-through" : "none", transition: "all 0.2s" }}>{item.text}</span>
-          <button onClick={() => removeEquip(item.id)} style={{ background: "none", border: "none", color: "#FF6B6B", fontSize: 11, cursor: "pointer", opacity: 0.4, padding: "4px" }}>✕</button>
+          <button onClick={() => removeEquip(item.id)} style={{ background: "none", border: "none", color: "#FF6B6B", fontSize: 11, cursor: "pointer", opacity: 0.4, padding: "4px" }}>x</button>
         </div>
       ))}
-
       <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
         <input value={newItem} onChange={(e) => setNewItem(e.target.value)} placeholder="Agregar al equipaje..."
           onKeyDown={(e) => e.key === "Enter" && addEquip()}
@@ -1480,7 +1207,6 @@ return (
     </div>
   )}
 
-  {/* ===== COMPRAS ===== */}
   {activeList === "compras" && (
     <div>
       {shopping.length > 0 && (
@@ -1491,59 +1217,40 @@ return (
           <div style={{ fontSize: 11, color: "#8892A4", textAlign: "right" }}>{Math.round(shopping.length > 0 ? (checkedShop / shopping.length) * 100 : 0)}% comprado</div>
         </Card>
       )}
-
       {shopping.length === 0 && (
         <Card style={{ textAlign: "center", padding: 30, marginBottom: 16 }}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>🛍️</div>
-          <div style={{ fontSize: 14, color: "#8892A4" }}>Agregá lo que querés comprar en Miami</div>
-          <div style={{ fontSize: 12, color: "#6B7280", marginTop: 4 }}>Podés agregar fotos de referencia 📸</div>
+          <div style={{ fontSize: 14, color: "#8892A4" }}>Agrega lo que queres comprar en Miami</div>
         </Card>
       )}
-
       {shopping.map((item) => (
         <Card key={item.id} style={{ marginBottom: 10, padding: 12, opacity: item.bought ? 0.6 : 1, transition: "opacity 0.3s" }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <input type="checkbox" checked={item.bought} onChange={() => toggleShop(item.id)}
-              style={{ width: 20, height: 20, accentColor: "#A78BFA", flexShrink: 0, cursor: "pointer", marginTop: 2 }} />
+            <input type="checkbox" checked={item.bought} onChange={() => toggleShop(item.id)} style={{ width: 20, height: 20, accentColor: "#A78BFA", flexShrink: 0, cursor: "pointer", marginTop: 2 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 14, fontWeight: 600, color: item.bought ? "#6B7280" : "#E8ECF4", textDecoration: item.bought ? "line-through" : "none" }}>
-                  {item.text}
-                </span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: item.bought ? "#6B7280" : "#E8ECF4", textDecoration: item.bought ? "line-through" : "none" }}>{item.text}</span>
                 <div style={{ display: "flex", gap: 4, alignItems: "center", flexShrink: 0 }}>
                   {item.bought && <span style={{ fontSize: 9, color: "#A78BFA", fontWeight: 700, padding: "2px 6px", background: "rgba(167,139,250,0.15)", borderRadius: 6 }}>COMPRADO</span>}
-                  <button onClick={() => removeShop(item.id)} style={{ background: "none", border: "none", color: "#FF6B6B", fontSize: 11, cursor: "pointer", opacity: 0.4, padding: "4px" }}>✕</button>
+                  <button onClick={() => removeShop(item.id)} style={{ background: "none", border: "none", color: "#FF6B6B", fontSize: 11, cursor: "pointer", opacity: 0.4, padding: "4px" }}>x</button>
                 </div>
               </div>
-
-              {/* Photo */}
               {item.photo ? (
                 <div style={{ marginTop: 8, position: "relative" }}>
-                  <img src={item.photo} alt={item.text}
-                    style={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)" }} />
-                  <button onClick={() => removePhoto(item.id)}
-                    style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.7)", border: "none", color: "#FF6B6B", fontSize: 11, cursor: "pointer", padding: "4px 8px", borderRadius: 6, fontWeight: 600 }}>
-                    ✕ Quitar
-                  </button>
+                  <img src={item.photo} alt={item.text} style={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)" }} />
+                  <button onClick={() => removePhoto(item.id)} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.7)", border: "none", color: "#FF6B6B", fontSize: 11, cursor: "pointer", padding: "4px 8px", borderRadius: 6, fontWeight: 600 }}>x Quitar</button>
                 </div>
               ) : (
-                <button onClick={() => triggerFileInput(item.id)}
-                  style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "10px", background: "rgba(167,139,250,0.06)", border: "1px dashed rgba(167,139,250,0.25)", borderRadius: 10, cursor: "pointer", color: "#A78BFA", fontSize: 12, fontWeight: 600 }}>
+                <button onClick={() => triggerFileInput(item.id)} style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "10px", background: "rgba(167,139,250,0.06)", border: "1px dashed rgba(167,139,250,0.25)", borderRadius: 10, cursor: "pointer", color: "#A78BFA", fontSize: 12, fontWeight: 600 }}>
                   {uploading === item.id ? (
-                    <>
-                      <div style={{ width: 14, height: 14, border: "2px solid rgba(167,139,250,0.3)", borderTopColor: "#A78BFA", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-                      Subiendo...
-                    </>
-                  ) : (
-                    <>📸 Agregar foto</>
-                  )}
+                    <><div style={{ width: 14, height: 14, border: "2px solid rgba(167,139,250,0.3)", borderTopColor: "#A78BFA", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Subiendo...</>
+                  ) : <>📸 Agregar foto</>}
                 </button>
               )}
             </div>
           </div>
         </Card>
       ))}
-
       <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
         <input value={newShopItem} onChange={(e) => setNewShopItem(e.target.value)} placeholder="Agregar a compras..."
           onKeyDown={(e) => e.key === "Enter" && addShop()}
@@ -1564,11 +1271,9 @@ export default function App() {
 const [data, setData] = useState(DEFAULT_DATA);
 const [tab, setTab] = useState(“dashboard”);
 const [synced, setSynced] = useState(false);
-const [firebaseReady, setFirebaseReady] = useState(false);
 const isLocalUpdate = useRef(false);
 const saveTimeout = useRef(null);
 
-// Connect to Firebase on mount
 useEffect(() => {
 try {
 const unsubscribe = onTripData((firebaseData) => {
@@ -1576,39 +1281,27 @@ if (!isLocalUpdate.current) {
 setData({ …DEFAULT_DATA, …firebaseData });
 }
 isLocalUpdate.current = false;
-setFirebaseReady(true);
 setSynced(true);
 });
-return () => {
-if (typeof unsubscribe === ‘function’) unsubscribe();
-};
+return () => { if (typeof unsubscribe === “function”) unsubscribe(); };
 } catch (err) {
-console.error(‘Firebase connection error:’, err);
-// Fallback to localStorage
+console.error(“Firebase connection error:”, err);
 try {
-const local = localStorage.getItem(‘miami-trip-2026’);
+const local = localStorage.getItem(“miami-trip-2026”);
 if (local) setData({ …DEFAULT_DATA, …JSON.parse(local) });
 } catch (e) {}
 }
 }, []);
 
-// Debounced save to Firebase
 const updateData = useCallback((newData) => {
 setData(newData);
 isLocalUpdate.current = true;
 setSynced(false);
-
-```
-// Save to localStorage as backup
-try { localStorage.setItem('miami-trip-2026', JSON.stringify(newData)); } catch (e) {}
-
-// Debounce Firebase save (300ms)
+try { localStorage.setItem(“miami-trip-2026”, JSON.stringify(newData)); } catch (e) {}
 if (saveTimeout.current) clearTimeout(saveTimeout.current);
 saveTimeout.current = setTimeout(() => {
-  saveTripData(newData).then(() => setSynced(true));
+saveTripData(newData).then(() => setSynced(true));
 }, 300);
-```
-
 }, []);
 
 const sections = {
@@ -1624,34 +1317,26 @@ checklist: <ChecklistSection data={data} updateData={updateData} />,
 
 return (
 <div style={{ minHeight: “100vh”, background: “linear-gradient(180deg, #0A0E1A 0%, #111827 50%, #0D1117 100%)”, color: “#E8ECF4”, maxWidth: 480, margin: “0 auto”, position: “relative”, paddingBottom: 80 }}>
-{/* Header */}
 <div style={{ padding: “12px 20px”, display: “flex”, alignItems: “center”, justifyContent: “space-between”, borderBottom: “1px solid rgba(255,255,255,0.04)”, position: “sticky”, top: 0, background: “rgba(10,14,26,0.95)”, backdropFilter: “blur(20px)”, zIndex: 10 }}>
 <div style={{ display: “flex”, alignItems: “center”, gap: 10 }}>
 <span style={{ fontSize: 22 }}>🌴</span>
 <div>
-<div style={{ fontSize: 16, fontWeight: 800, letterSpacing: -0.3, fontFamily: “‘Playfair Display’, serif” }}>Miami Trip</div>
-<div style={{ fontSize: 10, color: “#8892A4”, letterSpacing: 1, textTransform: “uppercase” }}>Marzo 2026 · Hollywood Beach</div>
+<div style={{ fontSize: 16, fontWeight: 800, letterSpacing: -0.3 }}>Miami Trip</div>
+<div style={{ fontSize: 10, color: “#8892A4”, letterSpacing: 1, textTransform: “uppercase” }}>Marzo 2026 - Hollywood Beach</div>
 </div>
 </div>
 <SyncIndicator synced={synced} />
 </div>
-
-```
-  {/* Content */}
-  <div style={{ padding: "16px 16px 24px" }}>{sections[tab]}</div>
-
-  {/* Bottom nav */}
-  <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "rgba(10,14,26,0.95)", backdropFilter: "blur(20px)", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-around", padding: "6px 0 env(safe-area-inset-bottom, 8px)", zIndex: 20, overflowX: "auto" }}>
-    <Tab active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon="🏠" label="Home" />
-    <Tab active={tab === "flights"} onClick={() => setTab("flights")} icon="✈️" label="Vuelos" />
-    <Tab active={tab === "hotel" || tab === "car"} onClick={() => setTab(tab === "hotel" ? "car" : "hotel")} icon="🏡" label="Aloj." />
-    <Tab active={tab === "expenses"} onClick={() => setTab("expenses")} icon="💰" label="Gastos" badge={(data.expenses || []).length} />
-    <Tab active={tab === "itinerary"} onClick={() => setTab("itinerary")} icon="📋" label="Plan" />
-    <Tab active={tab === "tickets"} onClick={() => setTab("tickets")} icon="📁" label="Docs" badge={(data.documents || []).length || null} />
-    <Tab active={tab === "checklist"} onClick={() => setTab("checklist")} icon="📝" label="Listas" badge={(data.checklist || []).filter(i => !i.checked).length + (data.shopping || []).filter(i => !i.bought).length || null} />
-  </div>
+<div style={{ padding: “16px 16px 24px” }}>{sections[tab]}</div>
+<div style={{ position: “fixed”, bottom: 0, left: “50%”, transform: “translateX(-50%)”, width: “100%”, maxWidth: 480, background: “rgba(10,14,26,0.95)”, backdropFilter: “blur(20px)”, borderTop: “1px solid rgba(255,255,255,0.06)”, display: “flex”, justifyContent: “space-around”, padding: “6px 0 env(safe-area-inset-bottom, 8px)”, zIndex: 20, overflowX: “auto” }}>
+<Tab active={tab === “dashboard”} onClick={() => setTab(“dashboard”)} icon=“🏠” label=“Home” />
+<Tab active={tab === “flights”} onClick={() => setTab(“flights”)} icon=“✈️” label=“Vuelos” />
+<Tab active={tab === “hotel” || tab === “car”} onClick={() => setTab(tab === “hotel” ? “car” : “hotel”)} icon=“🏡” label=“Aloj.” />
+<Tab active={tab === “expenses”} onClick={() => setTab(“expenses”)} icon=“💰” label=“Gastos” badge={(data.expenses || []).length} />
+<Tab active={tab === “itinerary”} onClick={() => setTab(“itinerary”)} icon=“📋” label=“Plan” />
+<Tab active={tab === “tickets”} onClick={() => setTab(“tickets”)} icon=“📁” label=“Docs” badge={(data.documents || []).length || null} />
+<Tab active={tab === “checklist”} onClick={() => setTab(“checklist”)} icon=“📝” label=“Listas” badge={(data.checklist || []).filter((i) => !i.checked).length + (data.shopping || []).filter((i) => !i.bought).length || null} />
 </div>
-```
-
+</div>
 );
 }
