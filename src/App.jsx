@@ -1331,52 +1331,128 @@ function ItinerarySection({ data, updateData }) {
 }
 
 function ChecklistSection({ data, updateData }) {
+  const [activeList, setActiveList] = useState("equipaje");
   const [newItem, setNewItem] = useState("");
-  const checklist = data.checklist || [];
-  const checked = checklist.filter(i => i.checked).length;
+  const [newShopItem, setNewShopItem] = useState("");
 
-  const toggle = (id) => {
+  const checklist = data.checklist || [];
+  const shopping = data.shopping || [];
+  const checkedEquip = checklist.filter(i => i.checked).length;
+  const checkedShop = shopping.filter(i => i.bought).length;
+
+  // Equipaje
+  const toggleEquip = (id) => {
     const updated = checklist.map(i => i.id === id ? { ...i, checked: !i.checked } : i);
     updateData({ ...data, checklist: updated });
   };
-  const add = () => {
+  const addEquip = () => {
     if (!newItem.trim()) return;
     updateData({ ...data, checklist: [...checklist, { id: Date.now().toString(), text: newItem.trim(), checked: false }] });
     setNewItem("");
   };
-  const remove = (id) => updateData({ ...data, checklist: checklist.filter(i => i.id !== id) });
+  const removeEquip = (id) => updateData({ ...data, checklist: checklist.filter(i => i.id !== id) });
+
+  // Shopping
+  const toggleShop = (id) => {
+    const updated = shopping.map(i => i.id === id ? { ...i, bought: !i.bought } : i);
+    updateData({ ...data, shopping: updated });
+  };
+  const addShop = () => {
+    if (!newShopItem.trim()) return;
+    updateData({ ...data, shopping: [...shopping, { id: Date.now().toString(), text: newShopItem.trim(), bought: false }] });
+    setNewShopItem("");
+  };
+  const removeShop = (id) => updateData({ ...data, shopping: shopping.filter(i => i.id !== id) });
+
+  const totalBadge = checklist.filter(i => !i.checked).length + shopping.filter(i => !i.bought).length;
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: "#E8ECF4", fontFamily: "'Playfair Display', serif" }}>✅ Equipaje</div>
-        <span style={{ fontSize: 13, color: "#00D4AA", fontWeight: 700 }}>{checked}/{checklist.length}</span>
+      <div style={{ fontSize: 18, fontWeight: 800, color: "#E8ECF4", marginBottom: 16, fontFamily: "'Playfair Display', serif" }}>📝 Listas</div>
+
+      {/* Tab selector */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <button onClick={() => setActiveList("equipaje")} style={{ flex: 1, padding: "10px 14px", borderRadius: 10, border: activeList === "equipaje" ? "1px solid rgba(0,212,170,0.3)" : "1px solid rgba(255,255,255,0.06)", background: activeList === "equipaje" ? "rgba(0,212,170,0.1)" : "rgba(255,255,255,0.04)", cursor: "pointer", textAlign: "center" }}>
+          <div style={{ fontSize: 18, marginBottom: 4 }}>🧳</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: activeList === "equipaje" ? "#00D4AA" : "#8892A4" }}>Equipaje</div>
+          <div style={{ fontSize: 10, color: "#6B7280", marginTop: 2 }}>{checkedEquip}/{checklist.length}</div>
+        </button>
+        <button onClick={() => setActiveList("compras")} style={{ flex: 1, padding: "10px 14px", borderRadius: 10, border: activeList === "compras" ? "1px solid rgba(167,139,250,0.3)" : "1px solid rgba(255,255,255,0.06)", background: activeList === "compras" ? "rgba(167,139,250,0.1)" : "rgba(255,255,255,0.04)", cursor: "pointer", textAlign: "center" }}>
+          <div style={{ fontSize: 18, marginBottom: 4 }}>🛍️</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: activeList === "compras" ? "#A78BFA" : "#8892A4" }}>Compras Miami</div>
+          <div style={{ fontSize: 10, color: "#6B7280", marginTop: 2 }}>{checkedShop}/{shopping.length}</div>
+        </button>
       </div>
 
-      {checklist.length > 0 && (
-        <Card style={{ marginBottom: 16 }}>
-          <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden", marginBottom: 4 }}>
-            <div style={{ height: "100%", width: `${checklist.length > 0 ? (checked / checklist.length) * 100 : 0}%`, background: "linear-gradient(90deg, #00D4AA, #00B4D8)", borderRadius: 3, transition: "width 0.5s" }} />
+      {/* ===== EQUIPAJE ===== */}
+      {activeList === "equipaje" && (
+        <div>
+          {checklist.length > 0 && (
+            <Card style={{ marginBottom: 16 }}>
+              <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden", marginBottom: 4 }}>
+                <div style={{ height: "100%", width: `${checklist.length > 0 ? (checkedEquip / checklist.length) * 100 : 0}%`, background: "linear-gradient(90deg, #00D4AA, #00B4D8)", borderRadius: 3, transition: "width 0.5s" }} />
+              </div>
+              <div style={{ fontSize: 11, color: "#8892A4", textAlign: "right" }}>{Math.round(checklist.length > 0 ? (checkedEquip / checklist.length) * 100 : 0)}% listo</div>
+            </Card>
+          )}
+
+          {checklist.map((item) => (
+            <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              <input type="checkbox" checked={item.checked} onChange={() => toggleEquip(item.id)}
+                style={{ width: 20, height: 20, accentColor: "#00D4AA", flexShrink: 0, cursor: "pointer" }} />
+              <span style={{ flex: 1, fontSize: 14, color: item.checked ? "#6B7280" : "#E8ECF4", textDecoration: item.checked ? "line-through" : "none", transition: "all 0.2s" }}>{item.text}</span>
+              <button onClick={() => removeEquip(item.id)} style={{ background: "none", border: "none", color: "#FF6B6B", fontSize: 11, cursor: "pointer", opacity: 0.4, padding: "4px" }}>✕</button>
+            </div>
+          ))}
+
+          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <input value={newItem} onChange={(e) => setNewItem(e.target.value)} placeholder="Agregar al equipaje..."
+              onKeyDown={(e) => e.key === "Enter" && addEquip()}
+              style={{ flex: 1, padding: "10px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#E8ECF4", fontSize: 14, outline: "none" }} />
+            <Btn onClick={addEquip} small>+</Btn>
           </div>
-          <div style={{ fontSize: 11, color: "#8892A4", textAlign: "right" }}>{Math.round(checklist.length > 0 ? (checked / checklist.length) * 100 : 0)}% listo</div>
-        </Card>
+        </div>
       )}
 
-      {checklist.map((item) => (
-        <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-          <input type="checkbox" checked={item.checked} onChange={() => toggle(item.id)}
-            style={{ width: 20, height: 20, accentColor: "#00D4AA", flexShrink: 0, cursor: "pointer" }} />
-          <span style={{ flex: 1, fontSize: 14, color: item.checked ? "#6B7280" : "#E8ECF4", textDecoration: item.checked ? "line-through" : "none", transition: "all 0.2s" }}>{item.text}</span>
-          <button onClick={() => remove(item.id)} style={{ background: "none", border: "none", color: "#FF6B6B", fontSize: 11, cursor: "pointer", opacity: 0.4, padding: "4px" }}>✕</button>
-        </div>
-      ))}
+      {/* ===== COMPRAS ===== */}
+      {activeList === "compras" && (
+        <div>
+          {shopping.length > 0 && (
+            <Card style={{ marginBottom: 16 }}>
+              <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden", marginBottom: 4 }}>
+                <div style={{ height: "100%", width: `${shopping.length > 0 ? (checkedShop / shopping.length) * 100 : 0}%`, background: "linear-gradient(90deg, #A78BFA, #F472B6)", borderRadius: 3, transition: "width 0.5s" }} />
+              </div>
+              <div style={{ fontSize: 11, color: "#8892A4", textAlign: "right" }}>{Math.round(shopping.length > 0 ? (checkedShop / shopping.length) * 100 : 0)}% comprado</div>
+            </Card>
+          )}
 
-      <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-        <input value={newItem} onChange={(e) => setNewItem(e.target.value)} placeholder="Agregar item..."
-          onKeyDown={(e) => e.key === "Enter" && add()}
-          style={{ flex: 1, padding: "10px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#E8ECF4", fontSize: 14, outline: "none" }} />
-        <Btn onClick={add} small>+</Btn>
-      </div>
+          {shopping.length === 0 && (
+            <Card style={{ textAlign: "center", padding: 30, marginBottom: 16 }}>
+              <div style={{ fontSize: 36, marginBottom: 8 }}>🛍️</div>
+              <div style={{ fontSize: 14, color: "#8892A4" }}>Agregá lo que querés comprar en Miami</div>
+            </Card>
+          )}
+
+          {shopping.map((item) => (
+            <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              <input type="checkbox" checked={item.bought} onChange={() => toggleShop(item.id)}
+                style={{ width: 20, height: 20, accentColor: "#A78BFA", flexShrink: 0, cursor: "pointer" }} />
+              <span style={{ flex: 1, fontSize: 14, color: item.bought ? "#6B7280" : "#E8ECF4", textDecoration: item.bought ? "line-through" : "none", transition: "all 0.2s" }}>
+                {item.text}
+              </span>
+              {item.bought && <span style={{ fontSize: 10, color: "#A78BFA", fontWeight: 600, flexShrink: 0 }}>COMPRADO</span>}
+              <button onClick={() => removeShop(item.id)} style={{ background: "none", border: "none", color: "#FF6B6B", fontSize: 11, cursor: "pointer", opacity: 0.4, padding: "4px" }}>✕</button>
+            </div>
+          ))}
+
+          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <input value={newShopItem} onChange={(e) => setNewShopItem(e.target.value)} placeholder="Agregar a compras..."
+              onKeyDown={(e) => e.key === "Enter" && addShop()}
+              style={{ flex: 1, padding: "10px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "#E8ECF4", fontSize: 14, outline: "none" }} />
+            <Btn onClick={addShop} small>+</Btn>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1467,7 +1543,7 @@ export default function App() {
         <Tab active={tab === "expenses"} onClick={() => setTab("expenses")} icon="💰" label="Gastos" badge={(data.expenses || []).length} />
         <Tab active={tab === "itinerary"} onClick={() => setTab("itinerary")} icon="📋" label="Plan" />
         <Tab active={tab === "tickets"} onClick={() => setTab("tickets")} icon="📁" label="Docs" badge={(data.documents || []).length || null} />
-        <Tab active={tab === "checklist"} onClick={() => setTab("checklist")} icon="✅" label="Equipaje" badge={(data.checklist || []).filter(i => !i.checked).length || null} />
+        <Tab active={tab === "checklist"} onClick={() => setTab("checklist")} icon="📝" label="Listas" badge={(data.checklist || []).filter(i => !i.checked).length + (data.shopping || []).filter(i => !i.bought).length || null} />
       </div>
     </div>
   );
