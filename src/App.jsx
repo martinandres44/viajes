@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from “react”;
-import { onTripData, saveTripData } from “./firebase”;
+import { useState, useEffect, useRef, useCallback } from "react";
+import { onTripData, saveTripData } from "./firebase";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from “firebase/storage”;
 
 // ========== CONSTANTS ==========
