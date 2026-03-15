@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { onTripData, saveTripData } from "./firebase";
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from “firebase/storage”;
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 
 // ========== CONSTANTS ==========
 
-const SHEETS_URL = “https://script.google.com/macros/s/AKfycbzFtyCPdPbHqAvymF1HnJdCkHA_wHvBCYdgOVFlYVGoOt3hV5YeBS1Ewmm2ZtwRL-U/exec”;
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycbzFtyCPdPbHqAvymF1HnJdCkHA_wHvBCYdgOVFlYVGoOt3hV5YeBS1Ewmm2ZtwRL-U/exec";
 
 const WEATHER_LAT = 26.0112;
 const WEATHER_LON = -80.1495;
